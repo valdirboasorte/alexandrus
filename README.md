@@ -2,7 +2,7 @@
 
 Compartilhamento de tela ao vivo, com identidade Frutiger Aero, que leva **só o som da fonte**: o jogo vai pelo Alexandrus, a voz continua no Discord, sem eco.
 
-- Site: https://alexandrus.vercel.app (estático; criar e entrar em salas depende do servidor de salas, que ainda não está hospedado)
+- Site: https://alexandrus.vercel.app (Vercel) · servidor de salas: Cloudflare Worker `alexandrus-servidor` ([apps/edge](apps/edge/README.md))
 - Arquitetura e decisões: [ARCHITECTURE.md](ARCHITECTURE.md)
 - App auxiliar de áudio para Windows: [native/ponte/README.md](native/ponte/README.md)
 
@@ -39,7 +39,11 @@ npm run build
 npm start
 ```
 
-Site na Vercel: cada push na `main` publica de novo (configuração em `vercel.json`). A Vercel não roda WebSocket, então o servidor de salas fica em outro lugar: defina `VITE_ALEXANDRUS_SERVER=https://endereco-do-servidor` nas variáveis do projeto na Vercel e `ALLOWED_ORIGINS=https://alexandrus.vercel.app` no servidor.
+Site na Vercel: cada push na `main` publica de novo (configuração em `vercel.json`). A Vercel não roda WebSocket, então o servidor de salas fica na Cloudflare (`apps/edge`, um Durable Object por sala). A variável `VITE_ALEXANDRUS_SERVER` do projeto na Vercel aponta para o Worker, e o Worker só aceita a origem `https://alexandrus.vercel.app` (`ALLOWED_ORIGINS` no `wrangler.jsonc`). Publicar o Worker:
+
+```powershell
+npm run deploy -w apps/edge
+```
 
 Variáveis do servidor: `PORT` (8790), `ALLOWED_ORIGINS` (sites hospedados fora do servidor), `HOST`, `STUN_URLS`, `TURN_URLS` + `TURN_SECRET` (credenciais temporárias no formato REST do coturn), `TURN_TTL`, `MAX_VIEWERS` (12), `TRUST_PROXY=1` atrás de proxy. Em produção, abra a Ponte com `--allow-origin https://seu-dominio` para ela aceitar o site.
 

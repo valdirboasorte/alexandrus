@@ -4,6 +4,7 @@ import { api } from '../../lib/api.ts';
 import { ViewerReceiver, type ReceiverState } from '../../lib/rtc/ViewerReceiver.ts';
 import type { ViewerStats } from '../../lib/rtc/stats.ts';
 import { SignalingClient, type SignalingState } from '../../lib/signaling.ts';
+import { signalingUrl } from '../../lib/server-url.ts';
 
 export interface ViewerSession {
   connection: SignalingState;
@@ -26,7 +27,7 @@ export function useViewerSession(code: string, name: string): ViewerSession {
   const rxRef = useRef<ViewerReceiver | null>(null);
 
   useEffect(() => {
-    const sig = new SignalingClient();
+    const sig = new SignalingClient(signalingUrl(code));
     const rx = new ViewerReceiver(sig, [{ urls: 'stun:stun.l.google.com:19302' }], setStream, setMedia);
     rxRef.current = rx;
     void api

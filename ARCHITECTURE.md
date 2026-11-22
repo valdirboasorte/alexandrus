@@ -145,6 +145,19 @@ mostra a dica uma vez, na entrada da sala.
 - `GET /api/ice` entrega STUN e, se configurado, credenciais TURN temporárias
   (formato REST do coturn: HMAC-SHA1 com segredo compartilhado).
 
+## Implantação
+
+| Peça | Onde | Observação |
+| --- | --- | --- |
+| Site | Vercel (`alexandrus.vercel.app`), publicado a cada push na `main` | Estático; `VITE_ALEXANDRUS_SERVER` aponta para o servidor de salas |
+| Servidor de salas | Cloudflare Worker `alexandrus-servidor` (`apps/edge`) | Um Durable Object por sala (WebSocket com hibernação, alarmes para a espera do anfitrião) e um para a lista pública |
+| Servidor Node | `apps/server` | Desenvolvimento local e hospedagem própria; mesmo protocolo |
+
+A Vercel não mantém WebSockets abertos, por isso o servidor de salas fica na
+Cloudflare. O WebSocket leva o código na URL (`/ws?code=K7Q2MX`) para o Worker
+entregar a conexão ao Durable Object daquela sala; o servidor Node ignora esse
+parâmetro, então o mesmo site funciona com os dois.
+
 ## Como cresce
 
 | Quando | Mudança | Por quê |

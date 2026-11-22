@@ -6,6 +6,7 @@ import { PonteClient, type PonteStatus } from '../../lib/ponte.ts';
 import { HostBroadcaster, type ViewerConnection } from '../../lib/rtc/HostBroadcaster.ts';
 import type { SenderStats } from '../../lib/rtc/stats.ts';
 import { SignalingClient, type SignalingState } from '../../lib/signaling.ts';
+import { signalingUrl } from '../../lib/server-url.ts';
 
 /** Como o som deve ser obtido para a próxima captura. */
 export type AudioRequest =
@@ -109,7 +110,7 @@ export function useHostSession(code: string, hostKey: string, hostName: string, 
 
   /* ---------------- conexão ---------------- */
   useEffect(() => {
-    const sig = new SignalingClient();
+    const sig = new SignalingClient(signalingUrl(code));
     sigRef.current = sig;
     const bc = new HostBroadcaster(sig, [{ urls: 'stun:stun.l.google.com:19302' }], refreshViewers);
     bcRef.current = bc;

@@ -15,8 +15,14 @@ export function apiUrl(path: string) {
   return `${SERVER_BASE}${path}`;
 }
 
-export function signalingUrl() {
-  if (SERVER_BASE) return `${SERVER_BASE.replace(/^http/, 'ws')}/ws`;
+/**
+ * URL do WebSocket de sinalização. O código da sala vai na query: na
+ * Cloudflare é ele que leva a conexão ao Durable Object certo (o servidor
+ * Node simplesmente ignora).
+ */
+export function signalingUrl(code?: string) {
+  const query = code ? `?code=${encodeURIComponent(code)}` : '';
+  if (SERVER_BASE) return `${SERVER_BASE.replace(/^http/, 'ws')}/ws${query}`;
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}/ws`;
+  return `${proto}://${window.location.host}/ws${query}`;
 }

@@ -22,7 +22,7 @@ export class SignalingClient {
   /** Último RTT até o servidor, em ms (ping de aplicação). */
   rttMs: number | null = null;
 
-  constructor(private readonly url: string = defaultUrl()) {
+  constructor(private readonly url: string = signalingUrl()) {
     this.connect();
   }
 
@@ -114,8 +114,4 @@ export class SignalingClient {
     this.stateListeners.clear();
     this.openHandlers.clear();
   }
-}
-
-function defaultUrl() {
-  return signalingUrl();
 }

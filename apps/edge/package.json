@@ -1,0 +1,13 @@
+{
+  "name": "@alexandrus/edge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Servidor de salas do Alexandrus na Cloudflare: um Worker na frente, um Durable Object por sala e um para a lista pública.",
+  "scripts": {
+    "dev": "wrangler dev --port 8788 --ip 127.0.0.1",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "smoke": "node test/smoke.mjs"
+  }
+}

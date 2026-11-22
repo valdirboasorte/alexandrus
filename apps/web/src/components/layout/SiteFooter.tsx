@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { PHOTO_CREDITS } from '../../content/credits.ts';
 import { Bubbles, Seaweed } from '../scenery/parts.tsx';
 import { FishSchool } from '../scenery/Scene.tsx';
+import { MotionToggle } from './MotionToggle.tsx';
 import './layout.css';
 
 export function SiteFooter() {
@@ -27,6 +28,7 @@ export function SiteFooter() {
             <li><Link to="/sobre" viewTransition>Sobre</Link></li>
           </ul>
         </div>
+        <MotionToggle />
         <p className="site-footer__credits">
           Fotos:{' '}
           {PHOTO_CREDITS.map((c, i) => (

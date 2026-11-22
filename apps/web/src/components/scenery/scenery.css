@@ -376,20 +376,12 @@
   opacity: 0.35;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sun__rays,
-  .clouds__drift,
-  .bubbles,
-  .glass-orb,
-  .water-surface__wave,
-  .light-rays__ray,
-  .fish-lane,
-  .fish-bob,
-  .seaweed__frond {
-    animation: none !important;
-  }
+/* Movimento reduzido: o cenário fica parado; os raios de luz continuam
+   cintilando (só opacidade, nada se desloca). */
+:root[data-motion='reduced'] :is(.sun__rays, .clouds__drift, .glass-orb, .water-surface__wave, .fish-lane, .fish-bob, .seaweed__frond) {
+  animation: none !important;
+}
 
-  .bubbles {
-    display: none;
-  }
+:root[data-motion='reduced'] .bubbles {
+  display: none;
 }

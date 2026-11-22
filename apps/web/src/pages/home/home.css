@@ -875,10 +875,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero-screen__glass::after,
-  .hero-screen__spark,
-  .routes__flow {
-    animation: none;
-  }
+/* Movimento reduzido: o brilho que passa pelo vidro fica; o ponto que corre
+   no anel e o fluxo das correntes param. */
+:root[data-motion='reduced'] .hero-screen__spark,
+:root[data-motion='reduced'] .routes__flow {
+  animation: none;
 }

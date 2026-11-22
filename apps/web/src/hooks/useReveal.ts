@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { isReducedMotion } from '../lib/motion.ts';
 
 /**
  * Entradas ao rolar: cada [data-reveal] sobe 24px e aparece quando entra na
@@ -12,7 +13,7 @@ export function useReveal() {
   return useCallback((root: HTMLElement | null) => {
     observer.current?.disconnect();
     if (!root) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    if (isReducedMotion() || !('IntersectionObserver' in window)) return;
 
     const items = Array.from(root.querySelectorAll<HTMLElement>('[data-reveal]'));
     const groups = new Map<Element | null, number>();

@@ -213,6 +213,10 @@
   animation: orb-float 7s ease-in-out infinite;
 }
 
+:root[data-motion='reduced'] .empty__bubble {
+  animation: none;
+}
+
 .empty h2 {
   font-size: var(--step-2);
   font-weight: 900;

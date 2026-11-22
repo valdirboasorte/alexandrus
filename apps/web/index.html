@@ -8,6 +8,15 @@
     <meta name="description" content="Alexandrus: compartilhe sua tela, seu jogo e o som dele ao vivo, sem levar a call junto." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Alexandrus</title>
+    <script>
+      // Animações: escolha salva no Alexandrus, senão a do sistema (ver src/lib/motion.ts).
+      (function () {
+        var m = null;
+        try { m = localStorage.getItem('alexandrus:motion'); } catch (e) {}
+        if (m !== 'full' && m !== 'reduced') m = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full';
+        document.documentElement.dataset.motion = m;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

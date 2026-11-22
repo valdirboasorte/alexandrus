@@ -43,8 +43,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .globe--spin .globe__land {
-    animation: none;
-  }
+:root[data-motion='reduced'] .globe--spin .globe__land {
+  animation: none;
 }

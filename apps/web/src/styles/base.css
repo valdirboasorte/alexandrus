@@ -143,21 +143,16 @@ p {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+/*
+ * Movimento reduzido: <html data-motion="reduced"> (sistema ou escolha no
+ * rodapé, ver src/lib/motion.ts). Reduzido não é zero: some o que se desloca
+ * pela tela; ficam brilhos, piscadas e o retorno dos botões.
+ */
+:root[data-motion='reduced'] {
+  scroll-behavior: auto;
+}
 
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none;
-  }
+:root[data-motion='reduced']::view-transition-old(root),
+:root[data-motion='reduced']::view-transition-new(root) {
+  animation: none;
 }

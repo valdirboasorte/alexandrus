@@ -17,6 +17,7 @@ import {
   type Visibility,
 } from '../../../packages/protocol/src/index.ts';
 import type { Config } from './config.ts';
+import { corsHeaders, isOriginAllowed } from './origins.ts';
 import type { RoomRegistry } from './rooms.ts';
 
 const MIME: Record<string, string> = {
@@ -203,6 +204,13 @@ export function createHttpHandler(registry: RoomRegistry, config: Config) {
     const pathname = new URL(req.url ?? '/', 'http://x').pathname;
 
     if (pathname.startsWith('/api/')) {
+      if (!isOriginAllowed(req, config.allowedOrigins)) return sendError(res, 403, 'not-allowed', 'Origem não permitida.');
+      for (const [k, v] of Object.entries(corsHeaders(req, config.allowedOrigins))) res.setHeader(k, v);
+      if (method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
       if (pathname === '/api/health' && method === 'GET') {
         const out: HealthResponse = { ok: true, version: '0.1.0', protocol: PROTOCOL_VERSION, rooms: registry.count() };
         return sendJson(res, 200, out);

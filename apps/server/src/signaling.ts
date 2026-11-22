@@ -111,7 +111,7 @@ export interface Signaling {
   close(): void;
 }
 
-export function createSignaling(registry: RoomRegistry): Signaling {
+export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req: IncomingMessage) => boolean } = {}): Signaling {
   const wss = new WebSocketServer({ noServer: true, maxPayload: LIMITS.maxMessageBytes });
   const alive = new WeakSet<WebSocket>();
 
@@ -298,6 +298,11 @@ export function createSignaling(registry: RoomRegistry): Signaling {
       const path = new URL(req.url ?? '/', 'http://x').pathname;
       if (path !== '/ws') {
         socket.write('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      if (opts.isAllowed && !opts.isAllowed(req)) {
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
         socket.destroy();
         return;
       }

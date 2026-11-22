@@ -12,6 +12,8 @@ export interface Config {
   turnTtl: number;
   maxViewers: number;
   trustProxy: boolean;
+  /** Origens de sites hospedados fora deste servidor (ex.: https://alexandrus.vercel.app). */
+  allowedOrigins: string[];
   hostGraceMs: number;
   unclaimedRoomMs: number;
 }
@@ -37,6 +39,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     turnTtl: num(env.TURN_TTL, 3600),
     maxViewers: num(env.MAX_VIEWERS, LIMITS.defaultMaxViewers),
     trustProxy: env.TRUST_PROXY === '1',
+    allowedOrigins: list(env.ALLOWED_ORIGINS).map((o) => o.replace(/\/$/, '')),
     hostGraceMs: LIMITS.hostGraceMs,
     unclaimedRoomMs: LIMITS.unclaimedRoomMs,
   };

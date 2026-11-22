@@ -8,6 +8,7 @@ import type {
   RoomResponse,
   RoomSummary,
 } from '@protocol';
+import { apiUrl } from './server-url.ts';
 
 export class ApiFailure extends Error {
   readonly status: number;
@@ -23,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => ctrl.abort(), init?.timeoutMs ?? 8000);
   try {
-    const res = await fetch(path, {
+    const res = await fetch(apiUrl(path), {
       ...init,
       signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },

@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, type Config } from './config.ts';
 import { createHttpHandler } from './http.ts';
+import { isOriginAllowed } from './origins.ts';
 import { RoomRegistry } from './rooms.ts';
 import { createSignaling } from './signaling.ts';
 
@@ -23,7 +24,7 @@ export async function createAlexandrusServer(options: ServerOptions = {}): Promi
     unclaimedRoomMs: config.unclaimedRoomMs,
   });
   const server = createServer(createHttpHandler(registry, config));
-  const signaling = createSignaling(registry);
+  const signaling = createSignaling(registry, { isAllowed: (req) => isOriginAllowed(req, config.allowedOrigins) });
   server.on('upgrade', (req, socket, head) => signaling.handleUpgrade(req, socket, head));
 
   await new Promise<void>((resolveListen, reject) => {

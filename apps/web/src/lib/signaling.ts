@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from '@protocol';
+import { signalingUrl } from './server-url.ts';
 
 type Listener = (msg: ServerMessage) => void;
 export type SignalingState = 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -116,6 +117,5 @@ export class SignalingClient {
 }
 
 function defaultUrl() {
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}/ws`;
+  return signalingUrl();
 }

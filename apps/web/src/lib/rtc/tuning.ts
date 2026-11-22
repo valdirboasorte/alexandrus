@@ -46,13 +46,21 @@ export function preferVideoCodecs(transceiver: RTCRtpTransceiver) {
   }
 }
 
-/** Teto de bitrate/FPS e preferência de degradação no remetente de vídeo. */
-export async function applySenderLimits(sender: RTCRtpSender, opts: { maxBitrate: number; maxFramerate: number; content: 'motion' | 'detail' }) {
+/**
+ * Teto de bitrate/FPS, divisor de resolução e preferência de degradação no
+ * remetente de vídeo. Devolve false se o navegador recusou (ex.: duas chamadas
+ * ao mesmo tempo); quem chama pode tentar de novo.
+ */
+export async function applySenderLimits(
+  sender: RTCRtpSender,
+  opts: { maxBitrate: number; maxFramerate: number; content: 'motion' | 'detail'; scale?: number },
+): Promise<boolean> {
   const params = sender.getParameters();
   if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
   for (const enc of params.encodings) {
     enc.maxBitrate = opts.maxBitrate;
     enc.maxFramerate = opts.maxFramerate;
+    enc.scaleResolutionDownBy = opts.scale ?? 1;
     (enc as RTCRtpEncodingParameters & { priority?: string; networkPriority?: string }).priority = 'high';
     (enc as RTCRtpEncodingParameters & { networkPriority?: string }).networkPriority = 'high';
   }
@@ -60,8 +68,10 @@ export async function applySenderLimits(sender: RTCRtpSender, opts: { maxBitrate
     opts.content === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
   try {
     await sender.setParameters(params);
+    return true;
   } catch {
-    /* sem negociação ainda; tentaremos de novo depois da resposta */
+    /* sem negociação ainda, ou outra chamada no meio */
+    return false;
   }
 }
 

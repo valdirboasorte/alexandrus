@@ -15,7 +15,7 @@
     "build": "npm run build -w apps/web",
     "start": "npm run start -w apps/server",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/server",
-    "test": "npm test -w apps/server",
+    "test": "npm test -w apps/server && npm test -w apps/web",
     "ponte:build": "powershell -ExecutionPolicy Bypass -File native/ponte/build.ps1"
   },
   "engines": {

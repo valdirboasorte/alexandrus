@@ -37,25 +37,29 @@ function quality(rtt: number | null, loss: number | null): { label: string; tone
   return { label: 'Ótima', tone: 'ok' };
 }
 
-export function ViewerStatsView({ read }: { read: () => Promise<ViewerStats> | null }) {
+export function ViewerStatsView({ read, sourceWidth }: { read: () => Promise<ViewerStats> | null; sourceWidth?: number }) {
   const s = usePoll(read);
   if (!s) return <p className="stats-empty">Medindo a conexão…</p>;
   const q = quality(s.rttMs, s.lossPct);
+  const reduced = !!(sourceWidth && s.width && s.width < sourceWidth * 0.85);
   return (
     <dl className="stats-grid">
       {q && (
         <div className="stats-grid__wide">
-          <dt>Conexão</dt>
+          <dt>Conexão agora</dt>
           <dd className={`stats-tone stats-tone--${q.tone}`}>{q.label}</dd>
         </div>
       )}
       <div>
         <dt>Imagem</dt>
-        <dd>{s.width && s.height ? `${s.width}×${s.height}` : dash}</dd>
+        <dd>
+          {s.width && s.height ? `${s.width}×${s.height}` : dash}
+          {reduced && <span className="stats-note">reduzida pela conexão</span>}
+        </dd>
       </div>
       <div>
         <dt>Quadros</dt>
-        <dd>{s.fps !== null ? `${s.fps} FPS` : dash}</dd>
+        <dd className={s.fps === 0 ? 'stats-tone stats-tone--bad' : undefined}>{s.fps === null ? dash : s.fps === 0 ? 'travado' : `${s.fps} FPS`}</dd>
       </div>
       <div>
         <dt>Vídeo</dt>
@@ -104,6 +108,13 @@ export function HostStatsView({ read, viewers }: { read: () => Promise<Map<strin
               {v.name}
               {q && <span className={`stats-tone stats-tone--${q.tone}`}>{q.label}</span>}
             </p>
+            {v.adaptLevel > 0 && (
+              <p className="host-stats__adapt">
+                Rede fraca: ajustado para até {mbps(Math.round(v.step.bps / 1000))}
+                {v.step.scale > 1 ? `, resolução ÷${String(v.step.scale).replace('.', ',')}` : ''}
+                {v.step.fps < 60 ? `, ${v.step.fps} FPS` : ''}
+              </p>
+            )}
             {s ? (
               <p className="host-stats__line">
                 {s.width && s.height ? `${s.width}×${s.height}` : dash} · {s.fps ?? dash} FPS · {mbps(s.videoKbps)} · {ms(s.rttMs)}

@@ -1,4 +1,4 @@
-import { Segmented } from '../../components/ui/controls.tsx';
+import { AeroToggle, Segmented } from '../../components/ui/controls.tsx';
 import { QUALITY_BITRATE, RESOLUTIONS, type CaptureSettings, type Quality, type Resolution } from '../../lib/capture.ts';
 
 export function QualityControls({ value, onChange, tone = 'light' }: { value: CaptureSettings; onChange: (s: CaptureSettings) => void; tone?: 'light' | 'dark' }) {
@@ -34,7 +34,21 @@ export function QualityControls({ value, onChange, tone = 'light' }: { value: Ca
           onChange={(v: Quality) => set('quality', v)}
           options={(Object.keys(QUALITY_BITRATE) as Quality[]).map((q) => ({ value: q, label: QUALITY_BITRATE[q].label }))}
         />
-        <span className="quality__hint">até {(QUALITY_BITRATE[value.quality].bps / 1_000_000).toLocaleString('pt-BR')} Mbps por espectador</span>
+        <span className="quality__hint">
+          até {(QUALITY_BITRATE[value.quality].bps / 1_000_000).toLocaleString('pt-BR')} Mbps por espectador. Cada pessoa assistindo usa essa banda do
+          seu upload.
+        </span>
+      </div>
+      <div className="quality__auto">
+        <label htmlFor="q-auto" className="quality__auto-label">
+          Ajuste automático pela conexão
+          <span>
+            {value.auto
+              ? 'Se a rede de alguém piorar, a qualidade dessa pessoa baixa sozinha e volta quando melhorar.'
+              : 'Todos recebem sempre a qualidade escolhida, mesmo com rede ruim.'}
+          </span>
+        </label>
+        <AeroToggle id="q-auto" checked={value.auto} onChange={(v) => set('auto', v)} label="Ajuste automático pela conexão" />
       </div>
       <div className="quality__row">
         <span className="quality__label">Prioridade</span>

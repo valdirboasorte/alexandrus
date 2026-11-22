@@ -1,6 +1,7 @@
 /*
  * Números reais da conexão, lidos de getStats(). Nada estimado.
  */
+import type { Sample } from './adaptive.ts';
 
 export interface ViewerStats {
   width: number | null;
@@ -56,8 +57,24 @@ function codecName(report: RTCStatsReport, codecId?: string) {
   return c?.mimeType?.split('/')[1]?.toUpperCase() ?? null;
 }
 
+interface VideoCounters {
+  ts: number;
+  lost: number;
+  recv: number;
+  jbDelay: number;
+  jbCount: number;
+  frames: number;
+}
+
+/**
+ * Leitor das estatísticas do espectador. Perda, buffer e quadros são do
+ * MOMENTO (diferença desde a leitura anterior, ~1,5 s), não médias desde o
+ * início: um engasgo antigo não fica pesando para sempre. fps = 0 quer dizer
+ * imagem travada agora.
+ */
 export function createViewerStatsReader(pc: RTCPeerConnection) {
   const prev: Prev = new Map();
+  let last: VideoCounters | null = null;
   return async (): Promise<ViewerStats> => {
     const report = await pc.getStats();
     const out: ViewerStats = {
@@ -69,13 +86,28 @@ export function createViewerStatsReader(pc: RTCPeerConnection) {
       if (s.kind === 'video') {
         out.width = s.frameWidth ?? null;
         out.height = s.frameHeight ?? null;
-        out.fps = typeof s.framesPerSecond === 'number' ? Math.round(s.framesPerSecond) : null;
         out.videoKbps = kbps(prev, 'v', s.bytesReceived ?? 0, s.timestamp);
-        const lost = s.packetsLost ?? 0;
-        const recv = s.packetsReceived ?? 0;
-        out.lossPct = recv + lost > 0 ? Math.round((lost / (recv + lost)) * 1000) / 10 : null;
-        if (s.jitterBufferEmittedCount) out.jitterBufferMs = Math.round((s.jitterBufferDelay / s.jitterBufferEmittedCount) * 1000);
         out.codec = codecName(report, s.codecId);
+        const cur: VideoCounters = {
+          ts: s.timestamp,
+          lost: Math.max(0, s.packetsLost ?? 0),
+          recv: s.packetsReceived ?? 0,
+          jbDelay: s.jitterBufferDelay ?? 0,
+          jbCount: s.jitterBufferEmittedCount ?? 0,
+          frames: s.framesDecoded ?? 0,
+        };
+        if (last && cur.ts > last.ts) {
+          const dLost = Math.max(0, cur.lost - last.lost);
+          const dRecv = Math.max(0, cur.recv - last.recv);
+          out.lossPct = dLost + dRecv > 0 ? Math.round((dLost / (dLost + dRecv)) * 1000) / 10 : 0;
+          const dCount = cur.jbCount - last.jbCount;
+          out.jitterBufferMs = dCount > 0 ? Math.round(((cur.jbDelay - last.jbDelay) / dCount) * 1000) : null;
+          const dt = (cur.ts - last.ts) / 1000;
+          out.fps = Math.round((cur.frames - last.frames) / dt);
+        } else {
+          out.fps = typeof s.framesPerSecond === 'number' ? Math.round(s.framesPerSecond) : null;
+        }
+        last = cur;
       } else if (s.kind === 'audio') {
         out.audioKbps = kbps(prev, 'a', s.bytesReceived ?? 0, s.timestamp);
       }
@@ -109,6 +141,28 @@ export function createSenderStatsReader(pc: RTCPeerConnection) {
     if (out.rttMs === null) out.rttMs = selectedPair(report).rtt;
     return out;
   };
+}
+
+/** Amostra de rede do lado do anfitrião, para o ajuste automático. */
+export async function readNetSample(pc: RTCPeerConnection): Promise<Sample> {
+  const report = await pc.getStats();
+  let loss: number | null = null;
+  let rtt: number | null = null;
+  let available: number | null = null;
+  let pairId: string | undefined;
+  report.forEach((s) => {
+    if (s.type === 'remote-inbound-rtp' && s.kind === 'video') {
+      if (typeof s.fractionLost === 'number') loss = s.fractionLost;
+      if (typeof s.roundTripTime === 'number') rtt = s.roundTripTime;
+    }
+    if (s.type === 'transport' && s.selectedCandidatePairId) pairId = s.selectedCandidatePairId;
+  });
+  const pair = pairId ? (report.get(pairId) as { availableOutgoingBitrate?: number; currentRoundTripTime?: number } | undefined) : undefined;
+  if (pair) {
+    if (typeof pair.availableOutgoingBitrate === 'number') available = pair.availableOutgoingBitrate;
+    if (rtt === null && typeof pair.currentRoundTripTime === 'number') rtt = pair.currentRoundTripTime;
+  }
+  return { loss, rtt, available };
 }
 
 export const LIMIT_REASON: Record<string, string> = {

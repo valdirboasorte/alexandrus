@@ -243,7 +243,7 @@ export function useHostSession(code: string, hostKey: string, hostName: string, 
         if (audioTrack) audioTrack.enabled = audioOnRef.current;
         const bc = bcRef.current!;
         await bc.setTracks(cap.video, audioTrack);
-        await bc.setLimits({ maxBitrate: QUALITY_BITRATE[s.quality].bps, maxFramerate: s.fps, content: s.content });
+        await bc.setLimits({ maxBitrate: QUALITY_BITRATE[s.quality].bps, maxFramerate: s.fps, content: s.content, auto: s.auto });
         // As faixas antigas só param depois da troca: quem assiste não vê piscar.
         stopTracks(old);
         if (old.fromPonte && !fromPonte) ponteRef.current.stop();
@@ -299,7 +299,7 @@ export function useHostSession(code: string, hostKey: string, hostName: string, 
           if (info.live) publishStream({ ...info, width: vs.width, height: vs.height, fps: vs.frameRate ? Math.round(vs.frameRate) : next.fps });
         });
       }
-      void bcRef.current?.setLimits({ maxBitrate: QUALITY_BITRATE[next.quality].bps, maxFramerate: next.fps, content: next.content });
+      void bcRef.current?.setLimits({ maxBitrate: QUALITY_BITRATE[next.quality].bps, maxFramerate: next.fps, content: next.content, auto: next.auto });
     },
     [publishStream],
   );

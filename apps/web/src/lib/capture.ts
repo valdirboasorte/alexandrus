@@ -20,6 +20,8 @@ export interface CaptureSettings {
   fps: 30 | 60;
   quality: Quality;
   content: ContentKind;
+  /** Baixa a qualidade sozinho para quem está com a rede ruim (ver rtc/adaptive.ts). */
+  auto: boolean;
 }
 
 export const DEFAULT_SETTINGS: CaptureSettings = {
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: CaptureSettings = {
   fps: 60,
   quality: 'equilibrada',
   content: 'motion',
+  auto: true,
 };
 
 export const RESOLUTIONS: Record<Resolution, { label: string; w?: number; h?: number }> = {

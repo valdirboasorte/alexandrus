@@ -38,6 +38,16 @@ const SPY = () => {
   };
   window.RTCPeerConnection.prototype = Orig.prototype;
   Object.assign(window.RTCPeerConnection, Orig);
+  // --rede-ruim: com window.__fakeLoss definido, o relatório do espectador
+  // (remote-inbound-rtp) passa a dizer perda alta e 700 ms de atraso.
+  const origGetStats = Orig.prototype.getStats;
+  Orig.prototype.getStats = async function (...a) {
+    const r = await origGetStats.apply(this, a);
+    if (!window.__fakeLoss) return r;
+    const m = new Map();
+    r.forEach((v, k) => m.set(k, v.type === 'remote-inbound-rtp' && v.kind === 'video' ? { ...v, fractionLost: window.__fakeLoss, roundTripTime: 0.7 } : v));
+    return m;
+  };
   // diagnóstico: contextos de áudio e bytes binários vindos da Ponte
   const OrigCtx = window.AudioContext;
   window.__ctxs = [];
@@ -155,6 +165,40 @@ try {
     return out;
   });
   log('envio do anfitrião:', JSON.stringify(sent));
+
+  if (args.includes('--rede-ruim')) {
+    const encs = () =>
+      host.evaluate(() =>
+        window.__pcs
+          .filter((pc) => pc.connectionState === 'connected')
+          .map((pc) => pc.getSenders().find((s) => s.track?.kind === 'video')?.getParameters().encodings?.[0])
+          .filter(Boolean)
+          .map((e) => ({ maxBitrate: e.maxBitrate, scale: e.scaleResolutionDownBy, fps: e.maxFramerate })),
+      );
+    const viewerWidth = () =>
+      viewer.evaluate(async () => {
+        const pc = window.__pcs.find((p) => p.connectionState === 'connected');
+        let w = 0;
+        (await pc.getStats()).forEach((s) => {
+          if (s.type === 'inbound-rtp' && s.kind === 'video') w = s.frameWidth;
+        });
+        return w;
+      });
+    log('antes da rede ruim:', JSON.stringify(await encs()), 'largura no espectador:', await viewerWidth());
+    await host.evaluate(() => (window.__fakeLoss = 0.35));
+    await host.waitForTimeout(6000);
+    const after = await encs();
+    await viewer.waitForTimeout(2500);
+    const wAfter = await viewerWidth();
+    log('com 35% de perda e 700 ms:', JSON.stringify(after), 'largura no espectador:', wAfter);
+    await host.getByRole('button', { name: 'Conexão' }).click();
+    await host.waitForTimeout(2000);
+    const adaptText = await host.locator('.host-stats__adapt').first().innerText().catch(() => '(sem aviso)');
+    log('painel do anfitrião:', adaptText);
+    if (!(after[0]?.maxBitrate < 6_000_000 && after[0]?.scale > 1)) fail('o anfitrião não baixou a qualidade com a rede ruim');
+    if (!(wAfter > 0 && wAfter < stats.size.split('x').map(Number)[0] * 0.85)) fail('a resolução no espectador não baixou');
+    await host.evaluate(() => (window.__fakeLoss = 0));
+  }
 
   // Tela inteira parada gera poucos quadros (só muda quando a tela muda).
   if (stats.framesDecoded < (usePonte ? 2 : 10)) fail('vídeo não chegou ao espectador');

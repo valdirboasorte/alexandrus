@@ -234,7 +234,7 @@ function ViewerStage({ v, onLeave }: { v: ReturnType<typeof useViewerSession>; o
         panel={
           panel === 'stats' && (
             <DockPanel title="Sua conexão" onClose={close}>
-              <ViewerStatsView read={v.readStats} />
+              <ViewerStatsView read={v.readStats} sourceWidth={room.stream.width} />
             </DockPanel>
           )
         }

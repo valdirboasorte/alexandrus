@@ -1,0 +1,50 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--white);
+  text-decoration: none;
+}
+
+.logo__word {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(170, 230, 255, 0.9),
+    0 2px 2px rgba(0, 50, 130, 0.45),
+    0 6px 16px rgba(0, 60, 160, 0.35);
+}
+
+.logo--compact .logo__word {
+  font-size: 1.35rem;
+}
+
+.globe {
+  flex: none;
+  overflow: visible;
+  filter: drop-shadow(0 6px 10px rgba(0, 50, 140, 0.35));
+}
+
+.globe__land {
+  transform-box: fill-box;
+}
+
+.globe--spin .globe__land {
+  animation: globe-turn 28s linear infinite;
+}
+
+@keyframes globe-turn {
+  to {
+    transform: translateX(120px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe--spin .globe__land {
+    animation: none;
+  }
+}

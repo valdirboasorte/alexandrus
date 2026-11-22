@@ -1,0 +1,79 @@
+/*
+ * Alexandrus — tokens.
+ * Frutiger Aero: céu, água, grama, vidro. Todo valor visual vem daqui.
+ */
+:root {
+  /* Céu, do zênite ao horizonte */
+  --sky-0: #0654c4;
+  --sky-1: #0f78e2;
+  --sky-2: #2b9ff2;
+  --sky-3: #6ccaf9;
+  --sky-4: #c9efff;
+
+  /* Água */
+  --sea-0: #46dcf8;
+  --sea-1: #15b2ec;
+  --sea-2: #0a86d6;
+  --sea-3: #0861b6;
+  --sea-4: #064b98;
+
+  /* Natureza */
+  --lime: #a6e64c;
+  --lime-hi: #d6fb8a;
+  --grass: #48b52c;
+  --grass-deep: #23801d;
+
+  /* Tinta e luz */
+  --ink: #052c63;
+  --ink-2: #1d4f8c;
+  --ink-on-dark: #ffffff;
+  --ink-on-dark-2: #d8f3ff;
+  --cyan: #18c6f2;
+  --aqua-glow: #7ee9ff;
+  --white: #ffffff;
+
+  /* Estados */
+  --live: #ff3d2e;
+  --live-hi: #ff8b70;
+  --ok: #3fcf3a;
+  --warn: #ffc53d;
+  --bad: #ff4a3a;
+
+  /* Tipografia */
+  --font-display: 'Nunito Variable', 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Nunito Variable', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+
+  --step-hero: clamp(3.1rem, 1.6rem + 6.2vw, 7.4rem);
+  --step-1: clamp(2.1rem, 1.4rem + 2.6vw, 3.6rem);
+  --step-2: clamp(1.4rem, 1.15rem + 0.9vw, 1.9rem);
+  --step-body: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  --step-small: 0.875rem;
+
+  /* Forma */
+  --r-pill: 999px;
+  --r-xl: 34px;
+  --r-lg: 26px;
+  --r-md: 18px;
+  --r-sm: 12px;
+
+  /* Vidro */
+  --glass-tint: rgba(255, 255, 255, 0.18);
+  --glass-tint-strong: rgba(255, 255, 255, 0.34);
+  --glass-frost: rgba(235, 249, 255, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.7);
+  --glass-blur: 18px;
+  --shadow-float: 0 22px 60px -22px rgba(2, 45, 115, 0.6), 0 3px 10px rgba(2, 45, 115, 0.16);
+  --shadow-soft: 0 10px 26px -12px rgba(2, 45, 115, 0.45);
+
+  /* Movimento */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-press: 140ms;
+  --t-ui: 200ms;
+
+  /* Layout */
+  --gutter: clamp(16px, 3.2vw, 40px);
+  --page-max: 1320px;
+  --nav-h: 76px;
+}

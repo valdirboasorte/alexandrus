@@ -1,0 +1,8 @@
+node_modules/
+apps/web/dist/
+apps/web/e2e/saida/
+native/ponte/bin/
+apps/web/public/downloads/
+*.wav
+.worker-progress.md
+.taste-skill/

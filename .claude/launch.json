@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "alexandrus-server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "apps/server/src/index.ts"],
+      "port": 8790
+    },
+    {
+      "name": "alexandrus-web",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["run", "dev", "-w", "apps/web"],
+      "port": 5173
+    }
+  ]
+}

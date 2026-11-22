@@ -347,6 +347,11 @@
   transition: transform var(--t-press) var(--ease-out), box-shadow var(--t-ui) ease, background var(--t-ui) ease;
 }
 
+/* número ímpar de fontes: a última ocupa a linha toda */
+.source-tile:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .source-tile:active {
   transform: scale(0.98);
 }

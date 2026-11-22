@@ -18,6 +18,8 @@ const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Applic
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
 const args = process.argv.slice(2);
 const usePonte = args.includes('--ponte');
+// --janela: "Jogo ou aplicativo" com o som da janela entregue pelo navegador (sem Ponte)
+const useWindow = args.includes('--janela');
 const appName = args.includes('--app') ? args[args.indexOf('--app') + 1] : 'powershell.exe';
 const SOURCE_TITLE = 'Fonte de teste Alexandrus';
 
@@ -76,7 +78,11 @@ const browser = await chromium.launch({
     '--window-size=1280,800',
     '--autoplay-policy=no-user-gesture-required',
     '--lang=en-US',
-    usePonte ? '--auto-select-desktop-capture-source=Entire screen' : `--auto-select-tab-capture-source-by-title=${SOURCE_TITLE}`,
+    usePonte
+      ? '--auto-select-desktop-capture-source=Entire screen'
+      : useWindow
+        ? `--auto-select-desktop-capture-source=${SOURCE_TITLE} - Google Chrome`
+        : `--auto-select-tab-capture-source-by-title=${SOURCE_TITLE}`,
   ],
 });
 
@@ -87,7 +93,8 @@ try {
 
   if (!usePonte) {
     // a aba que será compartilhada: imagem animada + tom de 440 Hz
-    const src = await hostCtx.newPage();
+    // Com --janela, a fonte fica numa janela só dela (o título da janela é o da aba ativa).
+    const src = useWindow ? await (await browser.newContext()).newPage() : await hostCtx.newPage();
     await src.setContent(`<!doctype html><title>${SOURCE_TITLE}</title><body style="margin:0;background:#1a8ae6">
       <canvas id=c width=640 height=360></canvas><script>
       const ctx=c.getContext('2d');let t=0;(function f(){t++;ctx.fillStyle='hsl('+(t%360)+',80%,55%)';ctx.fillRect(0,0,640,360);ctx.fillStyle='#fff';ctx.font='48px sans-serif';ctx.fillText('quadro '+t,40,200);requestAnimationFrame(f)})();
@@ -120,6 +127,8 @@ try {
     const item = host.locator('.ponte-item', { hasText: appName }).first();
     await item.click();
     log('app escolhido na Ponte:', (await item.innerText()).replace(/\s+/g, ' '));
+  } else if (useWindow) {
+    await host.getByRole('radio', { name: /Jogo ou aplicativo/ }).click();
   } else {
     await host.getByRole('radio', { name: /Aba do navegador/ }).click();
   }
@@ -212,7 +221,14 @@ try {
 
   // Tela inteira parada gera poucos quadros (só muda quando a tela muda).
   if (stats.framesDecoded < (usePonte ? 2 : 10)) fail('vídeo não chegou ao espectador');
-  if (!(stats.audioEnergy > 0)) fail('áudio da fonte não chegou (energia zero)');
+  if (useWindow) {
+    // A seleção automática do Chrome não liga "Compartilhar também o áudio do
+    // app" (isso só existe no seletor de verdade). Aqui se confere o vídeo da
+    // janela e o aviso honesto de que foi sem som.
+    const aviso = await host.locator('.stage-alerts').innerText().catch(() => '');
+    log('aviso no anfitrião:', aviso.replace(/\s+/g, ' '));
+    if (!aviso.includes('só com imagem')) fail('a sala não avisou que a janela foi sem som');
+  } else if (!(stats.audioEnergy > 0)) fail('áudio da fonte não chegou (energia zero)');
   if (!process.exitCode) log('OK: vídeo e áudio da fonte chegaram ao espectador.');
 
   await host.screenshot({ path: fileURLToPath(new URL('./saida/anfitriao.png', import.meta.url)) });

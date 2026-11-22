@@ -12,16 +12,16 @@ import type { AudioRequest } from './useHostSession.ts';
 
 const SOURCES: { id: SourceChoice; title: string; desc: string }[] = [
   { id: 'browser', title: 'Aba do navegador', desc: 'Jogos, vídeos e sites, com o som só da aba' },
-  { id: 'app', title: 'Jogo ou aplicativo', desc: 'Programa do PC, com o som só dele (Ponte)' },
+  { id: 'app', title: 'Jogo ou aplicativo', desc: 'A janela de um programa, com o som só dele' },
   { id: 'monitor', title: 'Tela inteira', desc: 'Tudo o que aparece no monitor' },
-  { id: 'window', title: 'Janela', desc: 'Um programa específico' },
 ];
 
 /** Intervalo da procura automática pela Ponte enquanto ela é necessária. */
 const PONTE_POLL_MS = 2500;
 
 type MonitorAudio = 'ponte-app' | 'ponte-exclude' | 'system';
-type WindowAudio = 'browser' | 'ponte-app';
+/** Som de um app: pelo navegador ("Compartilhar também o áudio do app", Chrome/Edge 141+) ou pela Ponte. */
+type AppAudio = 'browser' | 'ponte';
 
 interface Props {
   ponte: PonteClient;
@@ -45,14 +45,14 @@ export function SourcePanel(p: Props) {
   // A aba é o caminho que funciona sem nada instalado: começa por ela.
   const [choice, setChoice] = useState<SourceChoice>('browser');
   const [monitorAudio, setMonitorAudio] = useState<MonitorAudio>('ponte-app');
-  const [windowAudio, setWindowAudio] = useState<WindowAudio>('browser');
+  const [appAudio, setAppAudio] = useState<AppAudio>('browser');
   const [app, setApp] = useState<{ pid: number; name: string } | null>(null);
   const [excluded, setExcluded] = useState<{ pid: number; name: string } | null>(null);
   const [systemOk, setSystemOk] = useState(false);
 
   const ponteReady = p.ponteStatus === 'ready';
   const needsPonte =
-    p.audioEnabled && (choice === 'app' || (choice === 'monitor' && monitorAudio !== 'system') || (choice === 'window' && windowAudio === 'ponte-app'));
+    p.audioEnabled && ((choice === 'app' && appAudio === 'ponte') || (choice === 'monitor' && monitorAudio !== 'system'));
 
   // Enquanto uma opção que usa a Ponte está escolhida, procura por ela sozinha
   // (GET /status, sem abrir WebSocket) e conecta assim que ela aparece.
@@ -90,10 +90,10 @@ export function SourcePanel(p: Props) {
       case 'browser':
         return { kind: 'browser' };
       case 'app':
+        if (appAudio === 'browser') return { kind: 'browser' };
         return app && ponteReady ? { kind: 'ponte', pid: app.pid, name: app.name, mode: 'include' } : { kind: 'none' };
       case 'window':
-        if (windowAudio === 'browser') return { kind: 'browser' };
-        return app && ponteReady ? { kind: 'ponte', pid: app.pid, name: app.name, mode: 'include' } : { kind: 'none' };
+        return { kind: 'browser' };
       case 'monitor':
         if (monitorAudio === 'system') return systemOk ? { kind: 'system' } : { kind: 'none' };
         if (monitorAudio === 'ponte-exclude')
@@ -147,23 +147,33 @@ export function SourcePanel(p: Props) {
           </Note>
         )}
 
-        {p.audioEnabled && choice === 'window' && (
+        {p.audioEnabled && choice === 'app' && appAudio === 'browser' && (
           <div className="audio-options">
-            <Segmented
-              label="De onde vem o som da janela"
-              value={windowAudio}
-              onChange={(v) => pick(() => setWindowAudio(v))}
-              options={[
-                { value: 'browser', label: 'Pelo navegador' },
-                { value: 'ponte-app', label: 'Pela Ponte', disabled: !p.windows },
-              ]}
-            />
-            {windowAudio === 'browser' && (
-              <p className="audio-options__hint">
-                Chrome e Edge recentes conseguem levar o som da própria janela. Se o seu não oferecer, a sala avisa que a transmissão ficou sem som.
-              </p>
-            )}
+            <Note tone="ok" icon="window">
+              No seletor do navegador, vá na aba <strong>Janela</strong>, escolha o jogo e deixe ligado{' '}
+              <strong>“Compartilhar também o áudio do app”</strong>. Vai só o som dele: a call fica de fora.
+            </Note>
+            <p className="audio-options__hint">
+              Abra o jogo antes, em janela ou tela cheia sem bordas.{' '}
+              {p.windows && (
+                <>
+                  Seu navegador não mostra essa opção?{' '}
+                  <button type="button" className="link-btn" onClick={() => setAppAudio('ponte')}>
+                    Usar a Alexandrus Ponte
+                  </button>
+                </>
+              )}
+            </p>
           </div>
+        )}
+
+        {p.audioEnabled && choice === 'app' && appAudio === 'ponte' && (
+          <p className="audio-options__hint">
+            Som pela Alexandrus Ponte.{' '}
+            <button type="button" className="link-btn" onClick={() => setAppAudio('browser')}>
+              Voltar a usar o som do navegador
+            </button>
+          </p>
         )}
 
         {p.audioEnabled && choice === 'monitor' && (
@@ -235,7 +245,7 @@ export function SourcePanel(p: Props) {
         {p.busy ? 'Abrindo o seletor…' : p.submitLabel}
       </AeroButton>
       <p className="source-panel__foot">
-        O navegador vai pedir para você escolher {choice === 'monitor' ? 'o monitor' : choice === 'browser' ? 'a aba' : 'a janela'}. Seu microfone não é usado.
+        O navegador vai pedir para você escolher {choice === 'monitor' ? 'o monitor' : choice === 'browser' ? 'a aba' : 'a janela do jogo'}. Seu microfone não é usado.
       </p>
     </div>
   );

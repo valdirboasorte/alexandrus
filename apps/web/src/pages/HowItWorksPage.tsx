@@ -61,17 +61,13 @@ export function HowItWorksPage() {
               </tr>
               <tr>
                 <td>Jogo ou aplicativo</td>
-                <td><Yes>Janela ou tela</Yes></td>
+                <td><Yes>A janela do programa</Yes></td>
                 <td><Yes>Só o som do app escolhido</Yes></td>
                 <td><Yes>Sim</Yes></td>
-                <td>Windows 10 (2004+) ou 11 e a <Link to="/ponte">Ponte</Link> aberta</td>
-              </tr>
-              <tr>
-                <td>Janela</td>
-                <td><Yes>A janela</Yes></td>
-                <td><Meh>Quando o navegador oferece</Meh></td>
-                <td><Yes>Sim</Yes></td>
-                <td>Chrome/Edge recentes; ou a Ponte para o som</td>
+                <td>
+                  Chrome/Edge recentes (“Compartilhar também o áudio do app” no seletor); em navegadores sem essa opção, a{' '}
+                  <Link to="/ponte">Ponte</Link> no Windows
+                </td>
               </tr>
               <tr>
                 <td>Tela inteira</td>

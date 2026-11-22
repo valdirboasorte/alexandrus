@@ -219,8 +219,13 @@ function HostLive({ s, windows }: { s: HostSession; windows: boolean }) {
               {s.error && <Note tone="bad">{s.error}</Note>}
               {live.audioMissing && !s.error && (
                 <Note tone="warn">
-                  O navegador não entregou o som desta fonte: a transmissão está indo só com imagem.
-                  {windows ? ' Para levar o som de um app, use “Trocar fonte” e escolha a Ponte.' : ''}
+                  A transmissão está indo só com imagem: o navegador não entregou o som.{' '}
+                  {live.surface === 'window'
+                    ? 'Use “Trocar fonte” e, no seletor, deixe ligado “Compartilhar também o áudio do app”.'
+                    : live.surface === 'browser'
+                      ? 'Use “Trocar fonte” e deixe ligado “Compartilhar também o áudio da guia”.'
+                      : ''}
+                  {windows ? ' Se o seu navegador não tiver essa opção, a Alexandrus Ponte resolve.' : ''}
                 </Note>
               )}
               {audioRoute === 'system' && <Note tone="warn">Som do sistema inteiro: quem está na call pode se ouvir em eco.</Note>}

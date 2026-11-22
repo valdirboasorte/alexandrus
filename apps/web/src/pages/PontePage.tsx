@@ -20,8 +20,9 @@ export function PontePage() {
       <header className="page-head">
         <h1 className="page-title">Alexandrus Ponte</h1>
         <p className="page-lead">
-          Um programinha para Windows que pega o som de um aplicativo só (o seu jogo) e entrega para o Alexandrus. Sem ela, o navegador só consegue o som
-          de abas, de algumas janelas ou do sistema inteiro.
+          Um programinha para Windows que pega o som de um aplicativo só e entrega para o Alexandrus. Chrome e Edge recentes já fazem isso sozinhos
+          (“Compartilhar também o áudio do app” no seletor), então a Ponte é a reserva: para navegadores sem essa opção e para levar “tudo menos a
+          call” na tela inteira.
         </p>
       </header>
 
@@ -36,7 +37,7 @@ export function PontePage() {
                 em <strong>Executar assim mesmo</strong>. Se o Chrome perguntar sobre o download, escolha <strong>Manter</strong>.
               </li>
               <li>
-                No Alexandrus, escolha “Jogo ou aplicativo”. A sala encontra a Ponte sozinha (o navegador pode pedir permissão de rede local:
+                No Alexandrus, escolha “Jogo ou aplicativo” e clique em “Usar a Alexandrus Ponte” (ou “Tela inteira” → “Um app”). A sala encontra a Ponte sozinha (o navegador pode pedir permissão de rede local:
                 permita) e mostra os programas que estão tocando som agora; escolha o jogo.
               </li>
               <li>Selecione a janela do jogo (ou o monitor) no seletor do navegador. Pronto: imagem do navegador, som da Ponte.</li>

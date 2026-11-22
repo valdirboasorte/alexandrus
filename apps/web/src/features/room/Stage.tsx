@@ -1,11 +1,9 @@
-import { forwardRef, useEffect, type ReactNode, type RefObject } from 'react';
+import { forwardRef, useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Icon, type IconName } from '../../components/ui/Icon.tsx';
 
 interface StageProps {
-  stream: MediaStream | null;
-  videoRef: RefObject<HTMLVideoElement | null>;
-  /** Prévia do anfitrião: nunca toca som (ele já ouve a fonte). */
-  preview?: boolean;
+  /** O que ocupa o palco: um StreamVideo, a grade de telas, ou nada. */
+  media: ReactNode;
   idle: boolean;
   top: ReactNode;
   dock: ReactNode;
@@ -14,27 +12,23 @@ interface StageProps {
   label: string;
   /** Nada tocando ainda: o fundo vira o aquário da sala. */
   waiting?: boolean;
+  /** Abas das telas ao vivo, logo acima do dock. */
+  tabs?: ReactNode;
 }
 
 /**
  * O palco: vídeo ocupando tudo, cercado de água azul (nunca preto), com os
  * controles de vidro por cima. Os controles somem quando ninguém mexe.
  */
-export const Stage = forwardRef<HTMLDivElement, StageProps>(function Stage({ stream, videoRef, preview, idle, top, dock, panel, overlay, label, waiting }, ref) {
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.srcObject !== stream) v.srcObject = stream;
-    if (stream) void v.play().catch(() => {});
-  }, [stream, videoRef]);
-
+export const Stage = forwardRef<HTMLDivElement, StageProps>(function Stage({ media, idle, top, dock, panel, overlay, label, waiting, tabs }, ref) {
   return (
     <div ref={ref} className="stage" data-idle={idle || undefined} data-waiting={waiting || undefined} tabIndex={-1} aria-label={label}>
-      <video ref={videoRef} className="stage__video" autoPlay playsInline muted={preview} disablePictureInPicture={preview} />
+      {media}
       {overlay && <div className="stage__overlay">{overlay}</div>}
       <div className="stage__chrome stage__chrome--top">{top}</div>
       {panel}
       <div className="stage__chrome stage__chrome--bottom">
+        {tabs}
         <div className="stage__dock glass glass--deep" role="toolbar" aria-label="Controles da transmissão">
           {dock}
         </div>
@@ -42,6 +36,56 @@ export const Stage = forwardRef<HTMLDivElement, StageProps>(function Stage({ str
     </div>
   );
 });
+
+interface StreamVideoProps {
+  stream: MediaStream | null;
+  muted: boolean;
+  volume?: number;
+  /** A minha própria tela: sem picture-in-picture, sempre muda. */
+  preview?: boolean;
+  className?: string;
+  videoRef?: RefObject<HTMLVideoElement | null>;
+  /** O navegador recusou tocar com som (política de autoplay): já voltou a tocar mudo. */
+  onAutoplayBlocked?: () => void;
+  label?: string;
+}
+
+/**
+ * Um vídeo de tela. Volume e mudo são aplicados direto no elemento (o atributo
+ * muted do React só vale na criação). Se o navegador bloquear o som, toca mudo
+ * e avisa quem usa, que oferece "Toque para ativar o som".
+ */
+export function StreamVideo({ stream, muted, volume = 1, preview, className = 'stage__video', videoRef, onAutoplayBlocked, label }: StreamVideoProps) {
+  const own = useRef<HTMLVideoElement>(null);
+  const ref = videoRef ?? own;
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  const blockedRef = useRef(onAutoplayBlocked);
+  blockedRef.current = onAutoplayBlocked;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+    if (!stream) return;
+    el.muted = preview || mutedRef.current;
+    el.play().catch(() => {
+      if (el.muted) return;
+      el.muted = true;
+      blockedRef.current?.();
+      void el.play().catch(() => {});
+    });
+  }, [stream, ref, preview]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = preview || muted;
+    el.volume = Math.min(1, Math.max(0, volume));
+  }, [muted, volume, preview, ref]);
+
+  return <video ref={ref} className={className} autoPlay playsInline muted disablePictureInPicture={preview} aria-label={label} />;
+}
 
 interface DockButtonProps {
   icon: IconName;
@@ -51,9 +95,12 @@ interface DockButtonProps {
   expanded?: boolean;
   tone?: 'default' | 'danger';
   showLabel?: boolean;
+  disabled?: boolean;
+  /** Dica no lugar do rótulo (ex.: por que está desligado). */
+  hint?: string;
 }
 
-export function DockButton({ icon, label, onClick, pressed, expanded, tone = 'default', showLabel }: DockButtonProps) {
+export function DockButton({ icon, label, onClick, pressed, expanded, tone = 'default', showLabel, disabled, hint }: DockButtonProps) {
   return (
     <button
       type="button"
@@ -62,7 +109,8 @@ export function DockButton({ icon, label, onClick, pressed, expanded, tone = 'de
       aria-pressed={pressed}
       aria-expanded={expanded}
       aria-label={showLabel ? undefined : label}
-      title={label}
+      title={hint ?? label}
+      disabled={disabled}
     >
       <Icon name={icon} />
       {showLabel && <span>{label}</span>}

@@ -8,7 +8,7 @@ import { PonteSessions } from './PonteSessions.tsx';
 import { PonteSetup } from './PonteSetup.tsx';
 import { QualityControls } from './QualityControls.tsx';
 import { SourceGlyph } from './SourceGlyph.tsx';
-import type { AudioRequest } from './useHostSession.ts';
+import type { AudioRequest } from './useRoomSession.ts';
 
 const SOURCES: { id: SourceChoice; title: string; desc: string }[] = [
   { id: 'browser', title: 'Aba do navegador', desc: 'Jogos, vídeos e sites, com o som só da aba' },

@@ -1,0 +1,305 @@
+/* ---------------- Rádio Aero ---------------- */
+
+/* botão fechado: uma pílula de vidro no canto, com o disco */
+.radio-launch {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 6px 16px 6px 6px;
+  border: 0;
+  border-radius: var(--r-pill);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-float);
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+.radio-launch:active {
+  transform: scale(0.97);
+}
+
+.radio-launch__disc,
+.radio__disc {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--white);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.95) 0 9%, transparent 10%),
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 42%),
+    conic-gradient(from 20deg, var(--cyan), var(--sea-2), var(--lime), var(--sky-2), var(--cyan));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 6px 14px -6px rgba(0, 60, 130, 0.6);
+}
+
+.radio-launch__disc svg,
+.radio__disc svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 1px rgba(0, 40, 90, 0.5));
+}
+
+.radio-launch__text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.radio-launch__text strong {
+  font-size: 0.95rem;
+}
+
+.radio-launch__text span {
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .radio-launch:hover .radio-launch__disc {
+    animation: radio-spin 2.4s linear infinite;
+  }
+}
+
+/* cartão aberto */
+.radio {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 45;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 12px;
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-float);
+  overflow: auto;
+  overscroll-behavior: contain;
+  transform-origin: 0% 100%;
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 260ms var(--ease-out);
+}
+
+.radio[hidden] {
+  display: none;
+}
+
+@starting-style {
+  .radio {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+.radio__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.radio__disc[data-spin] {
+  animation: radio-spin 3.2s linear infinite;
+}
+
+.radio__title {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.radio__title span {
+  color: var(--ink-2);
+  font-size: 0.8rem;
+}
+
+/* o player do YouTube: 200px de altura no mínimo (regra do YouTube), nada por cima */
+.radio__screen {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: linear-gradient(180deg, #0b6cc0, #064a8e);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 8px 20px -12px rgba(0, 40, 100, 0.7);
+}
+
+.radio__player,
+.radio__player iframe {
+  display: block;
+  width: 100%;
+  height: 214px;
+  border: 0;
+}
+
+.radio__msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  margin: 0;
+  padding: 16px;
+  color: var(--ink-on-dark);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.radio__msg a {
+  color: var(--white);
+  font-weight: 700;
+}
+
+.radio__now {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.radio__track {
+  overflow: hidden;
+  font-weight: 800;
+  font-size: 1.02rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.radio__game {
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.radio__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.radio__vol {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 4px;
+  color: var(--ink-2);
+}
+
+.radio__vol svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.radio__vol .aero-range {
+  flex: 1;
+  min-width: 0;
+}
+
+.radio__list {
+  max-height: 220px;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(120, 190, 230, 0.45);
+}
+
+.radio__list button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-ui) ease;
+}
+
+.radio__list button[aria-current='true'] {
+  background: linear-gradient(180deg, rgba(150, 220, 255, 0.75), rgba(90, 180, 245, 0.55));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .radio__list button:not([aria-current='true']):hover {
+    background: rgba(160, 220, 255, 0.35);
+  }
+}
+
+.radio__list-time {
+  flex: none;
+  width: 3.6em;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.radio__list-title {
+  display: grid;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.radio__list-title span {
+  color: var(--ink-2);
+  font-weight: 500;
+  font-size: 0.78rem;
+}
+
+.radio__credit {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.radio__credit a {
+  color: inherit;
+  font-weight: 700;
+}
+
+@keyframes radio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:root[data-motion='reduced'] .radio__disc[data-spin],
+:root[data-motion='reduced'] .radio-launch:hover .radio-launch__disc {
+  animation: none;
+}
+
+:root[data-motion='reduced'] .radio {
+  transition: opacity 160ms ease;
+}
+
+@starting-style {
+  :root[data-motion='reduced'] .radio {
+    transform: none;
+  }
+}

@@ -48,8 +48,14 @@ os limites reais de cada método.
   a ponte é um `.exe` de poucos KB sem instalador nem runtime extra. A API que
   importa (process loopback) é COM puro; não precisa de Electron nem Rust.
 - **Malha (mesh) antes de SFU.** Para o caso de uso (amigos numa call) a malha é
-  a menor latência possível e não exige servidor de mídia. O custo é o upload do
-  anfitrião: cada espectador recebe uma cópia. Limite padrão: 12 espectadores.
+  a menor latência possível e não exige servidor de mídia. O custo é o upload de
+  quem compartilha: cada pessoa que assiste recebe uma cópia. Limite padrão: 12
+  espectadores.
+- **Várias telas por sala (protocolo 2).** Qualquer participante pode compartilhar
+  (o anfitrião sempre; os outros se ele deixar ligado "Todos podem compartilhar"),
+  até 4 telas ao vivo. Quem assiste é quem pede a conexão (`request-offer`) e a
+  fecha ao trocar de tela (`bye`): no modo foco cada pessoa recebe só a tela que
+  está vendo; no lado a lado, todas. Ninguém assistindo = nada enviado.
 
 ## Áudio — o problema central
 
@@ -139,8 +145,13 @@ mostra a dica uma vez, na entrada da sala.
 - Criação por `POST /api/rooms` → código de 6 caracteres (alfabeto sem 0/O/1/I/L) e um
   `hostKey` secreto guardado só no navegador do anfitrião (sessionStorage).
 - Pública aparece em "Salas"; privada só por código ou link.
-- WebSocket `/ws`: entrar, trocar ofertas/respostas/ICE (o anfitrião sempre oferece),
-  estado da transmissão, contagem de espectadores.
+- WebSocket `/ws`: entrar (com a versão do protocolo; página antiga recebe
+  `outdated`), lista de participantes para todos, estado da tela de cada um
+  (`room.streams`), e ofertas/respostas/ICE entre quaisquer dois participantes.
+  Quem compartilha sempre oferece; o ICE diz o lado (`pub`/`sub`) porque duas
+  pessoas podem assistir uma à outra ao mesmo tempo.
+- O servidor recusa a 5ª tela ao vivo (`stage-full`) e telas de participantes com
+  o compartilhamento fechado (`share-closed`); fechar derruba as que estavam no ar.
 - Se o anfitrião cair ou recarregar a página, a sala espera 60 s antes de encerrar.
 - `GET /api/ice` entrega STUN e, se configurado, credenciais TURN temporárias
   (formato REST do coturn: HMAC-SHA1 com segredo compartilhado).

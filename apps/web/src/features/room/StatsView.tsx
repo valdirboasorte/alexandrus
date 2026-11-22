@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LIMIT_REASON, type SenderStats, type ViewerStats } from '../../lib/rtc/stats.ts';
-import type { HostViewer } from './useHostSession.ts';
+import type { Watcher } from './useRoomSession.ts';
 
 const dash = '—';
 const mbps = (kbps: number | null) => (kbps === null ? dash : kbps >= 1000 ? `${(kbps / 1000).toFixed(1).replace('.', ',')} Mbps` : `${kbps} kbps`);
@@ -93,9 +93,9 @@ export function ViewerStatsView({ read, sourceWidth }: { read: () => Promise<Vie
   );
 }
 
-export function HostStatsView({ read, viewers }: { read: () => Promise<Map<string, SenderStats>>; viewers: HostViewer[] }) {
+export function HostStatsView({ read, viewers }: { read: () => Promise<Map<string, SenderStats>>; viewers: Watcher[] }) {
   const map = usePoll(read);
-  if (viewers.length === 0) return <p className="stats-empty">Ninguém assistindo ainda. Os números aparecem por espectador.</p>;
+  if (viewers.length === 0) return <p className="stats-empty">Ninguém está assistindo a sua tela agora. Os números aparecem por pessoa.</p>;
   if (!map) return <p className="stats-empty">Medindo…</p>;
   return (
     <ul className="host-stats">

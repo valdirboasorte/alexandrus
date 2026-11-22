@@ -88,6 +88,18 @@ export function HowItWorksPage() {
         </div>
       </section>
 
+      <section className="prose-panel glass glass--frost" aria-labelledby="varias">
+        <h2 id="varias">Várias telas na mesma sala</h2>
+        <p>
+          Qualquer pessoa na sala pode compartilhar a própria tela, até quatro ao mesmo tempo. Cada tela vira uma aba no palco: quem assiste escolhe qual ver,
+          ou liga “Lado a lado” para ver todas. O som vem de uma tela por vez (a que você escolher), para não embolar.
+        </p>
+        <p>
+          Cada pessoa só recebe as telas que está vendo, então ninguém gasta internet com o que não está na tela. O anfitrião pode desligar “Todos podem
+          compartilhar a tela”: aí só ele compartilha, e quem estava no ar sai na hora.
+        </p>
+      </section>
+
       <section className="prose-panel glass glass--frost" aria-labelledby="eco">
         <h2 id="eco">Por que não dá eco</h2>
         <p>

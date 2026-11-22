@@ -4,6 +4,8 @@ import type { Duplex } from 'node:stream';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   LIMITS,
+  OFFLINE_STREAM,
+  PROTOCOL_VERSION,
   normalizeRoomCode,
   type AudioRoute,
   type ErrorCode,
@@ -34,6 +36,9 @@ const ERR_TEXT: Record<ErrorCode, string> = {
   'peer-not-found': 'Participante não encontrado.',
   'bad-request': 'Mensagem inválida.',
   'rate-limited': 'Mensagens demais. Vá com calma.',
+  'stage-full': 'Já há telas demais ao vivo nesta sala.',
+  'share-closed': 'O anfitrião não liberou o compartilhamento para os participantes.',
+  outdated: 'Esta página está desatualizada. Recarregue (F5).',
 };
 
 type Obj = Record<string, unknown>;
@@ -52,8 +57,12 @@ function validSignal(d: unknown): SignalData | null {
       return typeof d.sdp === 'string' && d.sdp.length <= MAX_SDP ? { kind: d.kind, sdp: d.sdp } : null;
     case 'request-offer':
       return { kind: 'request-offer' };
+    case 'bye':
+      return { kind: 'bye' };
     case 'ice': {
-      if (d.candidate === null) return { kind: 'ice', candidate: null };
+      const side = d.side;
+      if (side !== 'pub' && side !== 'sub') return null;
+      if (d.candidate === null) return { kind: 'ice', side, candidate: null };
       const c = d.candidate;
       if (!isObj(c) || typeof c.candidate !== 'string' || c.candidate.length > 4096) return null;
       const out: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null } = {
@@ -62,7 +71,7 @@ function validSignal(d: unknown): SignalData | null {
       if (c.sdpMid === null || typeof c.sdpMid === 'string') out.sdpMid = c.sdpMid;
       if (c.sdpMLineIndex === null || (typeof c.sdpMLineIndex === 'number' && Number.isFinite(c.sdpMLineIndex))) out.sdpMLineIndex = c.sdpMLineIndex;
       if (c.usernameFragment === null || typeof c.usernameFragment === 'string') out.usernameFragment = c.usernameFragment;
-      return { kind: 'ice', candidate: out };
+      return { kind: 'ice', side, candidate: out };
     }
     default:
       return null;
@@ -102,8 +111,8 @@ function keyMatches(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-function peerInfo(c: Conn, role: Role): PeerInfo {
-  return { id: c.id, name: c.name, role, joinedAt: c.joinedAt };
+function peerInfo(c: Conn): PeerInfo {
+  return { id: c.id, name: c.name, role: c.role, joinedAt: c.joinedAt };
 }
 
 export interface Signaling {
@@ -150,10 +159,11 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
       room = null;
       conn = null;
       if (role === 'host') {
+        for (const o of r.viewers.values()) o.send({ t: 'peer-left', peerId: c.id });
         registry.hostDisconnected(r, c);
       } else if (r.viewers.get(c.id) === c) {
         r.viewers.delete(c.id);
-        r.host?.send({ t: 'peer-left', peerId: c.id });
+        for (const o of registry.everyone(r)) o.send({ t: 'peer-left', peerId: c.id });
         registry.broadcastRoom(r);
       }
     };
@@ -187,18 +197,23 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
 
       if (msg.t === 'join') {
         if (room) return fail('bad-request');
+        if (typeof msg.v !== 'number' || msg.v < PROTOCOL_VERSION) {
+          fail('outdated');
+          ws.close(1000);
+          return;
+        }
         if (typeof msg.code !== 'string') return fail('bad-request');
         if (msg.role !== 'host' && msg.role !== 'viewer') return fail('bad-request');
         const code = normalizeRoomCode(msg.code);
         const target = code ? registry.get(code) : undefined;
         if (!target) return fail('room-not-found');
         const id = generatePeerId();
-        const base = { id, joinedAt: Date.now(), send: sendMsg, close: () => ws.close(1000) };
+        const base = { id, joinedAt: Date.now(), stream: { ...OFFLINE_STREAM }, send: sendMsg, close: () => ws.close(1000) };
 
         if (msg.role === 'host') {
           if (typeof msg.hostKey !== 'string' || !keyMatches(msg.hostKey, target.hostKey)) return fail('bad-host-key');
           if (target.host) return fail('host-already-connected');
-          const c: Conn = { ...base, name: cleanName(msg.name, 'Anfitrião') };
+          const c: Conn = { ...base, role: 'host', name: cleanName(msg.name, 'Anfitrião') };
           target.hostName = c.name;
           registry.hostConnected(target, c);
           room = target;
@@ -209,14 +224,17 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
             you: id,
             role: 'host',
             room: registry.summary(target),
-            peers: [...target.viewers.values()].map((v) => peerInfo(v, 'viewer')),
+            peers: [...target.viewers.values()].map(peerInfo),
           });
-          for (const v of target.viewers.values()) v.send({ t: 'room', room: registry.summary(target) });
+          for (const v of target.viewers.values()) {
+            v.send({ t: 'peer-joined', peer: peerInfo(c) });
+            v.send({ t: 'room', room: registry.summary(target) });
+          }
           return;
         }
 
         if (target.viewers.size >= target.maxViewers) return fail('room-full');
-        const c: Conn = { ...base, name: cleanName(msg.name, 'Visitante') };
+        const c: Conn = { ...base, role: 'viewer', name: cleanName(msg.name, 'Visitante') };
         target.viewers.set(id, c);
         room = target;
         role = 'viewer';
@@ -226,9 +244,9 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
           you: id,
           role: 'viewer',
           room: registry.summary(target),
-          peers: target.host ? [peerInfo(target.host, 'host')] : [],
+          peers: registry.everyone(target).filter((o) => o !== c).map(peerInfo),
         });
-        target.host?.send({ t: 'peer-joined', peer: peerInfo(c, 'viewer') });
+        for (const o of registry.everyone(target)) if (o !== c) o.send({ t: 'peer-joined', peer: peerInfo(c) });
         registry.broadcastRoom(target);
         return;
       }
@@ -241,21 +259,19 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
           if (typeof msg.to !== 'string') return fail('bad-request');
           const data = validSignal(msg.data);
           if (!data) return fail('bad-request');
-          let target: Conn | undefined | null;
-          if (role === 'host') target = r.viewers.get(msg.to);
-          else target = r.host && r.host.id === msg.to ? r.host : undefined;
-          if (!target) {
-            // viewer -> outro viewer = não permitido; id inexistente = não encontrado
-            return fail(role === 'viewer' && r.viewers.has(msg.to) ? 'not-allowed' : 'peer-not-found');
-          }
+          const target = msg.to === conn.id ? undefined : registry.everyone(r).find((o) => o.id === msg.to);
+          if (!target) return fail('peer-not-found');
           target.send({ t: 'signal', from: conn.id, data });
           return;
         }
         case 'stream': {
-          if (role !== 'host') return fail('not-allowed');
           const info = sanitizeStream(msg.info);
           if (!info) return fail('bad-request');
-          r.stream = info;
+          if (role !== 'host' && !r.shareOpen) return fail('share-closed');
+          if (info.live && !conn.stream.live && registry.everyone(r).filter((o) => o.stream.live).length >= LIMITS.maxPresenters) {
+            return fail('stage-full');
+          }
+          conn.stream = info;
           registry.broadcastRoom(r);
           return;
         }
@@ -263,6 +279,11 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
           if (role !== 'host') return fail('not-allowed');
           let name: string | undefined;
           let visibility: Visibility | undefined;
+          let shareOpen: boolean | undefined;
+          if (msg.shareOpen !== undefined) {
+            if (typeof msg.shareOpen !== 'boolean') return fail('bad-request');
+            shareOpen = msg.shareOpen;
+          }
           if (msg.name !== undefined) {
             if (typeof msg.name !== 'string') return fail('bad-request');
             name = msg.name.trim();
@@ -274,6 +295,10 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
           }
           if (name !== undefined) r.name = name;
           if (visibility !== undefined) r.visibility = visibility;
+          if (shareOpen !== undefined) {
+            r.shareOpen = shareOpen;
+            if (!shareOpen) for (const v of r.viewers.values()) v.stream = { ...OFFLINE_STREAM };
+          }
           registry.broadcastRoom(r);
           return;
         }

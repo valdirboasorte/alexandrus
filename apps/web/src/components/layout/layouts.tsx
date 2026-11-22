@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, ScrollRestoration, useLocation } from 'react-router';
+import { Radio } from '../radio/Radio.tsx';
 import { SceneDefs } from '../scenery/parts.tsx';
 import { MeadowScene } from '../scenery/Scene.tsx';
 import { ToastProvider } from '../ui/toast.tsx';
@@ -29,6 +30,7 @@ export function RootLayout() {
         Pular para o conteúdo
       </a>
       <Outlet />
+      <Radio />
       <ScrollRestoration />
     </ToastProvider>
   );

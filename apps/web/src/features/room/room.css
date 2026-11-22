@@ -1411,3 +1411,290 @@ button.stage-chip__btn:active {
     gap: 2px;
   }
 }
+
+/* ---------------- várias telas na sala ---------------- */
+
+/* o rodapé do palco empilha: abas das telas em cima, dock embaixo */
+.stage__chrome--bottom {
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.stream-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stream-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 40px;
+  padding: 0 14px 0 5px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-ui) ease, transform var(--t-press) var(--ease-out);
+}
+
+.stream-tab .avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.85rem;
+}
+
+.stream-tab--grid {
+  padding-left: 12px;
+}
+
+.stream-tab--grid svg {
+  width: 20px;
+  height: 20px;
+}
+
+.stream-tab:active {
+  transform: scale(0.96);
+}
+
+.stream-tab[aria-pressed='true'] {
+  background: linear-gradient(180deg, rgba(150, 225, 255, 0.55), rgba(40, 140, 230, 0.55));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(170, 230, 255, 0.5);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stream-tab:not([aria-pressed='true']):hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+}
+
+/* lado a lado: até 4 telas numa grade, cada uma com o seu vidro de legenda */
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(6px, 1vw, 12px);
+  padding: clamp(74px, 9vh, 96px) clamp(8px, 1.4vw, 18px) clamp(132px, 17vh, 150px);
+}
+
+.stage-grid[data-count='2'] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.stage-grid[data-count='3'] > .stage-tile:first-child {
+  grid-column: span 2;
+}
+
+.stage-tile {
+  position: relative;
+  margin: 0;
+  min-height: 0;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: rgba(2, 30, 70, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(160, 225, 255, 0.25);
+  transition: box-shadow var(--t-ui) ease;
+}
+
+.stage-tile[data-audio] {
+  box-shadow:
+    inset 0 0 0 2px rgba(150, 230, 255, 0.85),
+    0 0 24px -6px rgba(110, 215, 255, 0.8);
+}
+
+.stage-tile__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stage-tile__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink-on-dark);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.stage-tile__bar {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 4px 4px 4px 4px;
+  border-radius: var(--r-pill);
+}
+
+.stage-tile__bar .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+
+.stage-tile__name {
+  display: grid;
+  min-width: 0;
+  padding-right: 6px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.stage-tile__name span {
+  overflow: hidden;
+  color: var(--ink-on-dark-2);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.stage-tile__bar .dock-btn--small {
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.stage-tile__bar .dock-btn--small svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dock-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* selos na lista de pessoas */
+.person-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(120, 200, 255, 0.3);
+  font-weight: 700;
+  font-size: 0.72rem;
+  vertical-align: 2px;
+}
+
+.person-tag--live {
+  background: var(--live);
+  color: var(--white);
+}
+
+/* "Todos podem compartilhar a tela" */
+.share-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.share-open--dark {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.share-open__text {
+  display: grid;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.share-open__text span {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
+.share-open--dark .share-open__text span {
+  color: var(--ink-on-dark-2);
+}
+
+.people-host {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.people-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.stats-section + .stats-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(160, 225, 255, 0.25);
+}
+
+.stats-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.studio__more {
+  margin: 14px 0 0;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .stage-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 62px;
+    padding-bottom: 128px;
+  }
+
+  .stage-grid[data-count='3'] > .stage-tile:first-child {
+    grid-column: auto;
+  }
+
+  .stream-tab {
+    height: 36px;
+    padding-right: 10px;
+  }
+
+  .stream-tab__name {
+    max-width: 7em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stream-tab--grid .stream-tab__name {
+    display: none;
+  }
+
+  .stage-tile__name span {
+    display: none;
+  }
+}

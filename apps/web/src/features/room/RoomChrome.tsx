@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { formatRoomCode, type RoomSummary } from '@protocol';
 import { Logo } from '../../components/brand/Logo.tsx';
-import { AeroLink } from '../../components/ui/AeroButton.tsx';
+import { AeroButton, AeroLink } from '../../components/ui/AeroButton.tsx';
 import { StatusOrb } from '../../components/ui/controls.tsx';
 import { RoomStatusPill } from '../../components/room/RoomBits.tsx';
 import type { SignalingState } from '../../lib/signaling.ts';
@@ -69,5 +69,21 @@ export function RoomMessage({ title, children, actions }: { title: string; child
         )}
       </div>
     </div>
+  );
+}
+
+/** O servidor recusou esta página: ela é de antes da última atualização. */
+export function OutdatedMessage() {
+  return (
+    <RoomMessage
+      title="Esta página está desatualizada"
+      actions={
+        <AeroButton icon="refresh" onClick={() => window.location.reload()}>
+          Recarregar
+        </AeroButton>
+      }
+    >
+      <p>O Alexandrus foi atualizado enquanto ela estava aberta. Recarregue para entrar na sala.</p>
+    </RoomMessage>
   );
 }

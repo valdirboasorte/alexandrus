@@ -5,16 +5,21 @@ import { createSenderStatsReader, readNetSample, type SenderStats } from './stat
 import { applyAudioSenderLimits, applySenderLimits, preferVideoCodecs, tuneOpus } from './tuning.ts';
 
 /*
- * Anfitrião em malha: uma RTCPeerConnection por espectador, sempre com dois
- * transceptores (vídeo e áudio) só de envio. Trocar de fonte ou ligar/desligar
- * o som usa replaceTrack/enabled — sem renegociar.
+ * Quem compartilha a tela (anfitrião ou qualquer participante), em malha: uma
+ * RTCPeerConnection por pessoa que assiste, sempre com dois transceptores
+ * (vídeo e áudio) só de envio. Trocar de fonte ou ligar/desligar o som usa
+ * replaceTrack/enabled — sem renegociar.
+ *
+ * Quem assiste é quem pede: a conexão só nasce num "request-offer" e morre num
+ * "bye" (a pessoa trocou de tela) ou quando ela sai da sala. Sem ninguém
+ * assistindo, nada é enviado.
  *
  * Ajuste automático: a cada 2 s lê perda, atraso e banda estimada de cada
  * espectador e sobe/desce o degrau de qualidade só daquele espectador
  * (ver adaptive.ts). Quem tem rede boa continua recebendo o máximo.
  *
  * Esta classe é a costura para o futuro SFU: a interface pública
- * (setTracks/addViewer/removeViewer/handleSignal/setLimits) é o que a sala usa.
+ * (setTracks/handleSignal/removeViewer/closeAll/setLimits) é o que a sala usa.
  */
 
 export interface SenderLimits {
@@ -25,7 +30,7 @@ export interface SenderLimits {
   auto: boolean;
 }
 
-export interface ViewerConnection {
+export interface WatcherConnection {
   id: string;
   name: string;
   state: RTCPeerConnectionState;
@@ -47,7 +52,7 @@ interface Peer {
 
 const TICK_MS = 2000;
 
-export class HostBroadcaster {
+export class Broadcaster {
   private peers = new Map<string, Peer>();
   private videoTrack: MediaStreamTrack | null = null;
   private audioTrack: MediaStreamTrack | null = null;
@@ -69,10 +74,14 @@ export class HostBroadcaster {
     this.iceServers = servers;
   }
 
-  /** Troca as faixas em todas as conexões (null = parar de enviar). */
+  /** Troca as faixas em todas as conexões. Sem vídeo = parou de compartilhar: fecha todas. */
   async setTracks(video: MediaStreamTrack | null, audio: MediaStreamTrack | null) {
     this.videoTrack = video;
     this.audioTrack = audio;
+    if (!video) {
+      this.closeAll();
+      return;
+    }
     await Promise.all(
       [...this.peers.values()].flatMap((p) => [
         p.video.sender.replaceTrack(video).catch(() => {}),
@@ -132,9 +141,9 @@ export class HostBroadcaster {
     }
   }
 
-  /** Cria (ou recria) a conexão com um espectador e envia a oferta. */
-  async addViewer(id: string, name: string) {
-    if (this.closed) return;
+  /** Cria (ou recria) a conexão com quem pediu para assistir e envia a oferta. */
+  private async addViewer(id: string, name: string) {
+    if (this.closed || !this.videoTrack) return;
     this.removeViewer(id, false);
 
     const pc = new RTCPeerConnection({ iceServers: this.iceServers, bundlePolicy: 'max-bundle' });
@@ -146,7 +155,7 @@ export class HostBroadcaster {
     this.peers.set(id, peer);
 
     pc.onicecandidate = (ev) => {
-      this.send(id, { kind: 'ice', candidate: ev.candidate ? ev.candidate.toJSON() : null });
+      this.send(id, { kind: 'ice', side: 'pub', candidate: ev.candidate ? ev.candidate.toJSON() : null });
     };
     pc.onconnectionstatechange = () => {
       this.onChange();
@@ -177,10 +186,21 @@ export class HostBroadcaster {
     if (notify) this.onChange();
   }
 
-  async handleSignal(from: string, data: SignalData) {
+  /** Fecha todas as conexões (parou de compartilhar, ou reconectou ao servidor com outro id). */
+  closeAll() {
+    for (const id of [...this.peers.keys()]) this.removeViewer(id, false);
+    this.onChange();
+  }
+
+  /** Sinais de quem assiste: request-offer, answer, bye e ICE do lado 'sub'. */
+  async handleSignal(from: string, data: SignalData, name: string) {
     const p = this.peers.get(from);
     if (data.kind === 'request-offer') {
-      await this.addViewer(from, p?.name ?? 'Visitante');
+      await this.addViewer(from, name);
+      return;
+    }
+    if (data.kind === 'bye') {
+      this.removeViewer(from);
       return;
     }
     if (!p) return;
@@ -200,7 +220,12 @@ export class HostBroadcaster {
     }
   }
 
-  viewers(): ViewerConnection[] {
+  setName(id: string, name: string) {
+    const p = this.peers.get(id);
+    if (p) p.name = name;
+  }
+
+  viewers(): WatcherConnection[] {
     return [...this.peers.values()].map((p) => ({
       id: p.id,
       name: p.name,
@@ -223,8 +248,7 @@ export class HostBroadcaster {
   close() {
     this.closed = true;
     window.clearInterval(this.timer);
-    for (const id of [...this.peers.keys()]) this.removeViewer(id, false);
-    this.onChange();
+    this.closeAll();
   }
 
   private send(to: string, data: SignalData) {

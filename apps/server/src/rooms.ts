@@ -2,6 +2,8 @@ import {
   LIMITS,
   OFFLINE_STREAM,
   type EndReason,
+  type LiveStream,
+  type Role,
   type RoomSummary,
   type ServerMessage,
   type StreamInfo,
@@ -14,6 +16,9 @@ export interface Conn {
   id: string;
   name: string;
   joinedAt: number;
+  role: Role;
+  /** A tela deste participante (offline quando não compartilha). */
+  stream: StreamInfo;
   send(msg: ServerMessage): void;
   close(): void;
 }
@@ -26,7 +31,7 @@ export interface Room {
   hostKey: string;
   createdAt: number;
   maxViewers: number;
-  stream: StreamInfo;
+  shareOpen: boolean;
   host: Conn | null;
   viewers: Map<string, Conn>;
   everHosted: boolean;
@@ -76,7 +81,7 @@ export class RoomRegistry implements RoomStore {
       hostKey: generateHostKey(),
       createdAt: Date.now(),
       maxViewers: this.maxViewers,
-      stream: { ...OFFLINE_STREAM },
+      shareOpen: true,
       host: null,
       viewers: new Map(),
       everHosted: false,
@@ -96,7 +101,17 @@ export class RoomRegistry implements RoomStore {
     return this.rooms.size;
   }
 
+  /** Todos os participantes conectados (anfitrião primeiro). */
+  everyone(room: Room): Conn[] {
+    return [...(room.host ? [room.host] : []), ...room.viewers.values()];
+  }
+
   summary(room: Room): RoomSummary {
+    const streams: LiveStream[] = this.everyone(room)
+      .filter((c) => c.stream.live)
+      .map((c) => ({ peerId: c.id, name: c.name, host: c.role === 'host', info: c.stream }))
+      .sort((a, b) => (a.info.startedAt ?? 0) - (b.info.startedAt ?? 0) || (a.peerId < b.peerId ? -1 : a.peerId > b.peerId ? 1 : 0));
+    const hostLive = streams.find((s) => s.host);
     return {
       code: room.code,
       name: room.name,
@@ -106,7 +121,10 @@ export class RoomRegistry implements RoomStore {
       viewers: room.viewers.size,
       maxViewers: room.maxViewers,
       createdAt: room.createdAt,
-      stream: room.stream,
+      stream: hostLive?.info ?? streams[0]?.info ?? { ...OFFLINE_STREAM },
+      streams,
+      shareOpen: room.shareOpen,
+      maxPresenters: LIMITS.maxPresenters,
     };
   }
 
@@ -121,8 +139,7 @@ export class RoomRegistry implements RoomStore {
   /** Transmite o resumo da sala a todos. */
   broadcastRoom(room: Room): void {
     const msg: ServerMessage = { t: 'room', room: this.summary(room) };
-    room.host?.send(msg);
-    for (const v of room.viewers.values()) v.send(msg);
+    for (const c of this.everyone(room)) c.send(msg);
   }
 
   /** Anfitrião conectou (ou voltou): cancela timers. */
@@ -133,11 +150,11 @@ export class RoomRegistry implements RoomStore {
     room.everHosted = true;
   }
 
-  /** Anfitrião saiu: período de graça com stream offline. */
+  /** Anfitrião saiu: período de graça (a tela dele some junto). */
   hostDisconnected(room: Room, conn: Conn): void {
     if (room.host !== conn) return;
     room.host = null;
-    room.stream = { ...OFFLINE_STREAM };
+    conn.stream = { ...OFFLINE_STREAM };
     this.broadcastRoom(room);
     if (room.timer) clearTimeout(room.timer);
     room.timer = setTimeout(() => this.end(room, 'host-timeout'), this.hostGraceMs);
@@ -149,7 +166,7 @@ export class RoomRegistry implements RoomStore {
     this.rooms.delete(room.code);
     if (room.timer) clearTimeout(room.timer);
     room.timer = null;
-    const everyone = [...(room.host ? [room.host] : []), ...room.viewers.values()];
+    const everyone = this.everyone(room);
     room.host = null;
     room.viewers.clear();
     for (const c of everyone) {

@@ -4,16 +4,24 @@ import { createViewerStatsReader, type ViewerStats } from './stats.ts';
 import { lowLatencyReceiver, tuneOpus } from './tuning.ts';
 
 /*
- * Espectador: responde às ofertas do anfitrião e monta o MediaStream que o
- * player toca. Cada oferta nova (anfitrião recarregou, ICE falhou) recria a
- * conexão do zero — simples e previsível.
+ * Quem assiste a UMA tela da sala. Pede a oferta a quem compartilha
+ * ("request-offer"), responde e monta o MediaStream que o player toca. Cada
+ * oferta nova (o apresentador reconectou, o ICE falhou) recria a conexão do
+ * zero — simples e previsível. Ao parar de assistir manda "bye", e quem
+ * compartilha fecha a conexão do lado dele.
+ *
+ * Uma pessoa pode assistir várias telas ao mesmo tempo (modo lado a lado):
+ * uma instância desta classe por tela.
  */
 
 export type ReceiverState = 'waiting' | 'connecting' | 'connected' | 'unstable' | 'failed';
 
-export class ViewerReceiver {
+/** Sem oferta depois disso (mensagem perdida, apresentador ainda subindo): pede de novo. */
+const OFFER_TIMEOUT_MS = 5000;
+const RETRY_MS = 2000;
+
+export class StreamReceiver {
   private pc: RTCPeerConnection | null = null;
-  private hostId: string | null = null;
   private pendingIce: RTCIceCandidateInit[] = [];
   private readStats: (() => Promise<ViewerStats>) | null = null;
   private retryTimer = 0;
@@ -23,6 +31,7 @@ export class ViewerReceiver {
 
   constructor(
     private readonly signaling: SignalingClient,
+    readonly presenterId: string,
     private iceServers: RTCIceServer[],
     private readonly onStream: (stream: MediaStream | null) => void,
     private readonly onState: (state: ReceiverState) => void,
@@ -32,16 +41,16 @@ export class ViewerReceiver {
     this.iceServers = servers;
   }
 
-  setHost(id: string | null) {
-    if (id !== this.hostId) this.reset();
-    this.hostId = id;
+  /** Começa a assistir. */
+  start() {
+    this.requestOffer();
   }
 
-  async handleSignal(from: string, data: SignalData) {
+  /** Sinais de quem compartilha: offer e ICE do lado 'pub'. */
+  async handleSignal(data: SignalData) {
     if (this.closed) return;
-    this.hostId = from;
     if (data.kind === 'offer') {
-      await this.answer(from, data.sdp);
+      await this.answer(data.sdp);
     } else if (data.kind === 'ice') {
       if (!data.candidate) return;
       if (this.pc?.remoteDescription) await this.pc.addIceCandidate(data.candidate).catch(() => {});
@@ -49,13 +58,14 @@ export class ViewerReceiver {
     }
   }
 
-  private async answer(from: string, sdp: string) {
+  private async answer(sdp: string) {
     this.reset(false);
     const pc = new RTCPeerConnection({ iceServers: this.iceServers, bundlePolicy: 'max-bundle' });
     this.pc = pc;
     this.readStats = createViewerStatsReader(pc);
     const stream = new MediaStream();
     this.stream = stream;
+    const to = this.presenterId;
 
     pc.ontrack = (ev) => {
       lowLatencyReceiver(ev.receiver);
@@ -64,15 +74,16 @@ export class ViewerReceiver {
       this.onStream(stream);
     };
     pc.onicecandidate = (ev) => {
-      this.signaling.send({ t: 'signal', to: from, data: { kind: 'ice', candidate: ev.candidate ? ev.candidate.toJSON() : null } });
+      this.signaling.send({ t: 'signal', to, data: { kind: 'ice', side: 'sub', candidate: ev.candidate ? ev.candidate.toJSON() : null } });
     };
     pc.onconnectionstatechange = () => {
+      if (this.pc !== pc) return;
       const s = pc.connectionState;
       if (s === 'connected') this.setState('connected');
       else if (s === 'disconnected') this.setState('unstable');
       else if (s === 'failed') {
         this.setState('failed');
-        this.scheduleRetry();
+        this.scheduleRetry(RETRY_MS);
       } else if (s === 'connecting' || s === 'new') this.setState('connecting');
     };
 
@@ -83,23 +94,29 @@ export class ViewerReceiver {
       const answer = await pc.createAnswer();
       answer.sdp = tuneOpus(answer.sdp ?? '');
       await pc.setLocalDescription(answer);
-      this.signaling.send({ t: 'signal', to: from, data: { kind: 'answer', sdp: pc.localDescription!.sdp } });
+      this.signaling.send({ t: 'signal', to, data: { kind: 'answer', sdp: pc.localDescription!.sdp } });
     } catch (e) {
+      if (this.pc !== pc) return;
       console.warn('[alexandrus] não consegui responder à oferta', e);
       this.setState('failed');
-      this.scheduleRetry();
+      this.scheduleRetry(RETRY_MS);
     }
   }
 
-  /** Pede uma oferta nova ao anfitrião (botão "Reconectar" ou falha de ICE). */
+  /** Pede uma oferta nova (botão "Tentar agora", falha de ICE, oferta que não veio). */
   requestOffer() {
-    if (!this.hostId) return;
-    this.signaling.send({ t: 'signal', to: this.hostId, data: { kind: 'request-offer' } });
+    if (this.closed) return;
+    this.signaling.send({ t: 'signal', to: this.presenterId, data: { kind: 'request-offer' } });
+    this.scheduleRetry(OFFER_TIMEOUT_MS, true);
   }
 
-  private scheduleRetry() {
+  /** Tenta de novo depois de `ms`; com onlyIfNoOffer, só se nenhuma oferta chegou nesse meio-tempo. */
+  private scheduleRetry(ms: number, onlyIfNoOffer = false) {
     window.clearTimeout(this.retryTimer);
-    this.retryTimer = window.setTimeout(() => this.requestOffer(), 2000);
+    this.retryTimer = window.setTimeout(() => {
+      if (onlyIfNoOffer && this.pc) return;
+      this.requestOffer();
+    }, ms);
   }
 
   stats(): Promise<ViewerStats> | null {
@@ -130,8 +147,11 @@ export class ViewerReceiver {
     }
   }
 
-  close() {
+  /** Parou de assistir. bye = avisar quem compartilha (falso se ele já saiu da sala). */
+  close(bye = true) {
+    if (this.closed) return;
     this.closed = true;
     this.reset(false);
+    if (bye) this.signaling.send({ t: 'signal', to: this.presenterId, data: { kind: 'bye' } });
   }
 }

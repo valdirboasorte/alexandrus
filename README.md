@@ -53,7 +53,7 @@ Variáveis do servidor: `PORT` (8790), `ALLOWED_ORIGINS` (sites hospedados fora 
 npm test
 ```
 
-Servidor de salas: 10 testes (criação, lista pública, chave do anfitrião, sinalização, sala cheia, queda e volta do anfitrião).
+Servidor de salas: 20 testes (criação, lista pública, chave do anfitrião, sinalização, sala cheia, queda e volta do anfitrião, várias telas, limite de 4, compartilhamento fechado, página desatualizada).
 
 Ponta a ponta com o Chrome real (precisa de `npm run dev` rodando):
 
@@ -67,13 +67,21 @@ Cria a sala, transmite uma aba que toca 440 Hz e confere no espectador quadros d
 node apps/web/e2e/transmissao.e2e.mjs --ponte --app powershell.exe
 ```
 
+Duas pessoas compartilhando: um espectador também compartilha, um terceiro troca de tela pelas abas e vê as duas lado a lado, e o anfitrião fecha o compartilhamento:
+
+```powershell
+node apps/web/e2e/transmissao.e2e.mjs --varias
+```
+
 ## Estado
 
 Funciona hoje, verificado:
 
 - Página inicial, criar sala, entrar (com prévia da sala), salas públicas, como funciona, sobre, Ponte; desktop e celular.
 - Salas públicas/privadas com código de 6 caracteres e link; anfitrião volta em até 60 s se recarregar a página.
-- Transmissão WebRTC anfitrião → espectadores (malha), troca de fonte sem derrubar quem assiste.
+- Transmissão WebRTC em malha, troca de fonte sem derrubar quem assiste.
+- Várias pessoas compartilhando na mesma sala (até 4 telas): quem assiste troca de tela pelas abas ou vê todas lado a lado (o som vem de uma só); o anfitrião pode deixar só ele compartilhar.
+- Rádio Aero: o mix “nintendo frutiger aero chill mix 2025” (ninchrisu) tocando pelo player oficial do YouTube num cartão do site, com lista de faixas; pausa e some nas salas.
 - Som da aba (isolado pelo navegador), som da janela quando o navegador entrega, som do sistema só com consentimento e aviso de eco.
 - Som de **um aplicativo** pela Ponte (WASAPI process loopback) e modo “tudo menos a call”.
 - “Áudio da fonte” liga/desliga na hora; resolução, FPS, qualidade e prioridade (fluidez/nitidez) ajustáveis ao vivo.

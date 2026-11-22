@@ -2,10 +2,12 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   LIMITS,
   OFFLINE_STREAM,
+  PROTOCOL_VERSION,
   normalizeRoomCode,
   type AudioRoute,
   type EndReason,
   type ErrorCode,
+  type LiveStream,
   type PeerInfo,
   type Role,
   type RoomSummary,
@@ -34,6 +36,9 @@ const ERR_TEXT: Record<ErrorCode, string> = {
   'peer-not-found': 'Participante não encontrado.',
   'bad-request': 'Mensagem inválida.',
   'rate-limited': 'Mensagens demais. Vá com calma.',
+  'stage-full': 'Já há telas demais ao vivo nesta sala.',
+  'share-closed': 'O anfitrião não liberou o compartilhamento para os participantes.',
+  outdated: 'Esta página está desatualizada. Recarregue (F5).',
 };
 
 type Obj = Record<string, unknown>;
@@ -52,8 +57,12 @@ function validSignal(d: unknown): SignalData | null {
       return typeof d.sdp === 'string' && d.sdp.length <= MAX_SDP ? { kind: d.kind, sdp: d.sdp } : null;
     case 'request-offer':
       return { kind: 'request-offer' };
+    case 'bye':
+      return { kind: 'bye' };
     case 'ice': {
-      if (d.candidate === null) return { kind: 'ice', candidate: null };
+      const side = d.side;
+      if (side !== 'pub' && side !== 'sub') return null;
+      if (d.candidate === null) return { kind: 'ice', side, candidate: null };
       const c = d.candidate;
       if (!isObj(c) || typeof c.candidate !== 'string' || c.candidate.length > 4096) return null;
       const out: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null } = {
@@ -62,7 +71,7 @@ function validSignal(d: unknown): SignalData | null {
       if (c.sdpMid === null || typeof c.sdpMid === 'string') out.sdpMid = c.sdpMid;
       if (c.sdpMLineIndex === null || (typeof c.sdpMLineIndex === 'number' && Number.isFinite(c.sdpMLineIndex))) out.sdpMLineIndex = c.sdpMLineIndex as number | null;
       if (c.usernameFragment === null || typeof c.usernameFragment === 'string') out.usernameFragment = c.usernameFragment;
-      return { kind: 'ice', candidate: out };
+      return { kind: 'ice', side, candidate: out };
     }
     default:
       return null;
@@ -122,7 +131,8 @@ interface Meta {
   hostKey: string;
   createdAt: number;
   maxViewers: number;
-  stream: StreamInfo;
+  /** Ausente em metas antigas = true. */
+  shareOpen?: boolean;
   hostEverJoined: boolean;
   hostGoneAt: number | null;
 }
@@ -133,6 +143,8 @@ interface Att {
   name: string;
   joinedAt: number;
   joined: boolean;
+  /** A tela deste participante; ausente = offline. */
+  stream?: StreamInfo;
 }
 
 interface Peer {
@@ -179,7 +191,7 @@ export class Room extends DurableObject<Env> {
       hostKey: randomB64Url(32),
       createdAt: Date.now(),
       maxViewers: input.maxViewers,
-      stream: { ...OFFLINE_STREAM },
+      shareOpen: true,
       hostEverJoined: false,
       hostGoneAt: null,
     };
@@ -214,6 +226,10 @@ export class Room extends DurableObject<Env> {
     const m = this.meta;
     if (!m) return null;
     const ps = this.peers(exclude);
+    const streams: LiveStream[] = ps
+      .filter((p) => p.a.stream?.live)
+      .map((p) => ({ peerId: p.a.id, name: p.a.name, host: p.a.role === 'host', info: p.a.stream as StreamInfo }))
+      .sort((x, y) => (x.info.startedAt ?? 0) - (y.info.startedAt ?? 0) || (x.peerId < y.peerId ? -1 : x.peerId > y.peerId ? 1 : 0));
     return {
       code: m.code,
       name: m.name,
@@ -223,7 +239,10 @@ export class Room extends DurableObject<Env> {
       viewers: ps.filter((p) => p.a.role === 'viewer').length,
       maxViewers: m.maxViewers,
       createdAt: m.createdAt,
-      stream: m.stream,
+      stream: streams.find((s) => s.host)?.info ?? streams[0]?.info ?? { ...OFFLINE_STREAM },
+      streams,
+      shareOpen: m.shareOpen !== false,
+      maxPresenters: LIMITS.maxPresenters,
     };
   }
 
@@ -291,18 +310,17 @@ export class Room extends DurableObject<Env> {
     if (!this.meta || !a?.joined) return;
     const role = a.role;
     try {
-      ws.serializeAttachment({ ...a, role: null, joined: false } satisfies Att);
+      ws.serializeAttachment({ ...a, role: null, joined: false, stream: undefined } satisfies Att);
     } catch {
       /* socket fechado */
     }
+    for (const p of this.peers(ws)) this.send(p.ws, { t: 'peer-left', peerId: a.id });
     if (role === 'host') {
-      this.meta.stream = { ...OFFLINE_STREAM };
       this.meta.hostGoneAt = Date.now();
       this.persist();
       this.broadcastRoom(ws);
       void this.ctx.storage.setAlarm(this.meta.hostGoneAt + LIMITS.hostGraceMs);
     } else {
-      for (const p of this.peers(ws)) if (p.a.role === 'host') this.send(p.ws, { t: 'peer-left', peerId: a.id });
       this.broadcastRoom(ws);
     }
   }
@@ -378,6 +396,15 @@ export class Room extends DurableObject<Env> {
 
     if (msg.t === 'join') {
       if (a.joined) return this.fail(ws, 'bad-request');
+      if (typeof msg.v !== 'number' || msg.v < PROTOCOL_VERSION) {
+        this.fail(ws, 'outdated');
+        try {
+          ws.close(1000, 'outdated');
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       if (typeof msg.code !== 'string') return this.fail(ws, 'bad-request');
       if (msg.role !== 'host' && msg.role !== 'viewer') return this.fail(ws, 'bad-request');
       const code = normalizeRoomCode(msg.code);
@@ -409,9 +436,12 @@ export class Room extends DurableObject<Env> {
           you: a.id,
           role: 'host',
           room,
-          peers: ps.filter((p) => p.a.role === 'viewer').map((p) => this.peerInfo(p.a)),
+          peers: ps.map((p) => this.peerInfo(p.a)),
         });
-        for (const p of ps) this.send(p.ws, { t: 'room', room });
+        for (const p of ps) {
+          this.send(p.ws, { t: 'peer-joined', peer: this.peerInfo(na) });
+          this.send(p.ws, { t: 'room', room });
+        }
         this.syncLobby();
         return;
       }
@@ -419,15 +449,14 @@ export class Room extends DurableObject<Env> {
       if (ps.filter((p) => p.a.role === 'viewer').length >= m.maxViewers) return this.fail(ws, 'room-full');
       const na: Att = { id: a.id, role: 'viewer', name: cleanName(msg.name, 'Visitante'), joinedAt, joined: true };
       ws.serializeAttachment(na);
-      const host = ps.find((p) => p.a.role === 'host');
       this.send(ws, {
         t: 'joined',
         you: a.id,
         role: 'viewer',
         room: this.buildSummary()!,
-        peers: host ? [this.peerInfo(host.a)] : [],
+        peers: ps.map((p) => this.peerInfo(p.a)),
       });
-      if (host) this.send(host.ws, { t: 'peer-joined', peer: this.peerInfo(na) });
+      for (const p of ps) this.send(p.ws, { t: 'peer-joined', peer: this.peerInfo(na) });
       this.broadcastRoom();
       return;
     }
@@ -441,20 +470,19 @@ export class Room extends DurableObject<Env> {
         const data = validSignal(msg.data);
         if (!data) return this.fail(ws, 'bad-request');
         const ps = this.peers();
-        const target = ps.find((p) => p.a.id === msg.to);
-        const allowed = target && ((role === 'host' && target.a.role === 'viewer') || (role === 'viewer' && target.a.role === 'host'));
-        if (!target || !allowed) {
-          return this.fail(ws, role === 'viewer' && target?.a.role === 'viewer' ? 'not-allowed' : 'peer-not-found');
-        }
+        const target = msg.to === a.id ? undefined : ps.find((p) => p.a.id === msg.to);
+        if (!target) return this.fail(ws, 'peer-not-found');
         this.send(target.ws, { t: 'signal', from: a.id, data });
         return;
       }
       case 'stream': {
-        if (role !== 'host') return this.fail(ws, 'not-allowed');
         const info = sanitizeStream(msg.info);
         if (!info) return this.fail(ws, 'bad-request');
-        m.stream = info;
-        this.persist();
+        if (role !== 'host' && m.shareOpen === false) return this.fail(ws, 'share-closed');
+        if (info.live && !a.stream?.live && this.peers().filter((p) => p.a.stream?.live).length >= LIMITS.maxPresenters) {
+          return this.fail(ws, 'stage-full');
+        }
+        ws.serializeAttachment({ ...a, stream: info } satisfies Att);
         this.broadcastRoom();
         return;
       }
@@ -462,6 +490,11 @@ export class Room extends DurableObject<Env> {
         if (role !== 'host') return this.fail(ws, 'not-allowed');
         let name: string | undefined;
         let visibility: Visibility | undefined;
+        let shareOpen: boolean | undefined;
+        if (msg.shareOpen !== undefined) {
+          if (typeof msg.shareOpen !== 'boolean') return this.fail(ws, 'bad-request');
+          shareOpen = msg.shareOpen;
+        }
         if (msg.name !== undefined) {
           if (typeof msg.name !== 'string') return this.fail(ws, 'bad-request');
           name = msg.name.trim();
@@ -473,6 +506,14 @@ export class Room extends DurableObject<Env> {
         }
         if (name !== undefined) m.name = name;
         if (visibility !== undefined) m.visibility = visibility;
+        if (shareOpen !== undefined) {
+          m.shareOpen = shareOpen;
+          if (!shareOpen) {
+            for (const p of this.peers()) {
+              if (p.a.role !== 'host' && p.a.stream?.live) p.ws.serializeAttachment({ ...p.a, stream: undefined } satisfies Att);
+            }
+          }
+        }
         this.persist();
         this.broadcastRoom();
         return;

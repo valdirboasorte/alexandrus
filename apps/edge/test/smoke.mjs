@@ -45,7 +45,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const h = await api('/api/health');
-  check('health', h.status === 200 && h.body?.ok === true && h.body.protocol === 1, h);
+  check('health', h.status === 200 && h.body?.ok === true && h.body.protocol === 2, h);
 
   const ice = await api('/api/ice');
   check('ice', ice.status === 200 && Array.isArray(ice.body?.iceServers), ice);
@@ -69,18 +69,24 @@ async function main() {
   // viewer em sala inexistente
   const ghost = new Client('ABCDEF');
   await ghost.opened;
-  ghost.send({ t: 'join', code: 'ABCDEF', role: 'viewer', name: 'X' });
+  ghost.send({ t: 'join', v: 2, code: 'ABCDEF', role: 'viewer', name: 'X' });
   const ge = await ghost.wait((m) => m.t === 'error');
   check('join unknown room -> room-not-found', ge.code === 'room-not-found', ge);
   await ghost.closed;
 
   const code = pub.body.room.code;
+  const old = new Client(code);
+  await old.opened;
+  old.send({ t: 'join', v: 1, code, role: 'viewer', name: 'Velho' });
+  const oe = await old.wait((m) => m.t === 'error');
+  check('old protocol -> outdated', oe.code === 'outdated', oe);
+  await old.closed;
   const hostKey = pub.body.hostKey;
 
   // chave errada
   const wk = new Client(code);
   await wk.opened;
-  wk.send({ t: 'join', code, role: 'host', hostKey: 'errada', name: 'Intruso' });
+  wk.send({ t: 'join', v: 2, code, role: 'host', hostKey: 'errada', name: 'Intruso' });
   const wke = await wk.wait((m) => m.t === 'error');
   check('wrong hostKey -> bad-host-key', wke.code === 'bad-host-key', wke);
   wk.ws.close();
@@ -88,13 +94,13 @@ async function main() {
   // host + viewers
   let host = new Client(code);
   await host.opened;
-  host.send({ t: 'join', code, role: 'host', hostKey, name: 'Ana' });
+  host.send({ t: 'join', v: 2, code, role: 'host', hostKey, name: 'Ana' });
   const hj = await host.wait((m) => m.t === 'joined');
   check('host joined', hj.role === 'host' && hj.room.hostOnline === true, hj);
 
   const dup = new Client(code);
   await dup.opened;
-  dup.send({ t: 'join', code, role: 'host', hostKey, name: 'Ana2' });
+  dup.send({ t: 'join', v: 2, code, role: 'host', hostKey, name: 'Ana2' });
   const de = await dup.wait((m) => m.t === 'error');
   check('second host -> host-already-connected', de.code === 'host-already-connected', de);
   dup.ws.close();
@@ -102,17 +108,20 @@ async function main() {
   const v1 = new Client(code);
   const v2 = new Client(code);
   await Promise.all([v1.opened, v2.opened]);
-  v1.send({ t: 'join', code, role: 'viewer', name: 'Caio' });
+  v1.send({ t: 'join', v: 2, code, role: 'viewer', name: 'Caio' });
   const v1j = await v1.wait((m) => m.t === 'joined');
   const pj = await host.wait((m) => m.t === 'peer-joined');
   check('host gets peer-joined', pj.peer.id === v1j.you && pj.peer.role === 'viewer', pj);
-  check('viewer sees host in peers', v1j.peers.length === 1 && v1j.peers[0].id === hj.you, v1j);
+  check('viewer sees host in peers', v1j.peers.length === 1 && v1j.peers[0].id === hj.you && v1j.peers[0].role === 'host', v1j);
   const hr = await host.wait((m) => m.t === 'room' && m.room.viewers === 1);
   const vr = await v1.wait((m) => m.t === 'room' && m.room.viewers === 1);
   check('everyone gets room viewers=1', hr && vr);
 
-  v2.send({ t: 'join', code, role: 'viewer', name: 'Duda' });
+  v2.send({ t: 'join', v: 2, code, role: 'viewer', name: 'Duda' });
   const v2j = await v2.wait((m) => m.t === 'joined');
+  check('v2 sees host + v1 in peers', v2j.peers.length === 2 && v2j.peers.some((p) => p.id === v1j.you && p.role === 'viewer'), v2j);
+  const pj2 = await v1.wait((m) => m.t === 'peer-joined' && m.peer.id === v2j.you);
+  check('viewer gets peer-joined for later viewer', !!pj2);
 
   // sinalização
   host.send({ t: 'signal', to: v1j.you, data: { kind: 'offer', sdp: 'v=0' } });
@@ -121,21 +130,70 @@ async function main() {
   v1.send({ t: 'signal', to: hj.you, data: { kind: 'answer', sdp: 'v=0' } });
   const s2 = await host.wait((m) => m.t === 'signal');
   check('signal viewer->host', s2.from === v1j.you && s2.data.kind === 'answer', s2);
-  v1.send({ t: 'signal', to: v2j.you, data: { kind: 'request-offer' } });
-  const s3 = await v1.wait((m) => m.t === 'error');
-  check('viewer->viewer rejected (not-allowed)', s3.code === 'not-allowed', s3);
+  v1.send({ t: 'signal', to: v2j.you, data: { kind: 'ice', side: 'sub', candidate: null } });
+  const s3 = await v2.wait((m) => m.t === 'signal');
+  check('viewer->viewer delivered, side kept', s3.from === v1j.you && s3.data.kind === 'ice' && s3.data.side === 'sub', s3);
+  v1.send({ t: 'signal', to: v2j.you, data: { kind: 'ice', candidate: null } });
+  const s3b = await v1.wait((m) => m.t === 'error' && m.code === 'bad-request');
+  check('ice without side -> bad-request', !!s3b);
+  v2.send({ t: 'signal', to: v1j.you, data: { kind: 'bye' } });
+  const s3c = await v1.wait((m) => m.t === 'signal' && m.data.kind === 'bye');
+  check('bye forwarded', !!s3c);
+  v1.send({ t: 'signal', to: v1j.you, data: { kind: 'bye' } });
+  const s3d = await v1.wait((m) => m.t === 'error' && m.code === 'peer-not-found');
+  check('signal to self -> peer-not-found', !!s3d);
   v1.send({ t: 'signal', to: 'nope', data: { kind: 'request-offer' } });
   const s4 = await v1.wait((m) => m.t === 'error' && m.code === 'peer-not-found');
   check('unknown peer -> peer-not-found', !!s4);
 
-  // viewer não pode usar stream
-  v1.send({ t: 'stream', info: { live: true, source: 'monitor', audio: 'none', audioEnabled: false } });
-  const s5 = await v1.wait((m) => m.t === 'error' && m.code === 'not-allowed');
-  check('viewer stream -> not-allowed', !!s5);
+  // viewer compartilha tela (shareOpen padrão true)
+  const LIVE = { live: true, source: 'window', audio: 'tab', audioEnabled: true };
+  v1.send({ t: 'stream', info: LIVE });
+  const vs = await host.wait((m) => m.t === 'room' && m.room.streams.length === 1);
+  check('viewer stream in streams (host:false)', vs.room.streams[0].host === false && vs.room.streams[0].peerId === v1j.you && vs.room.stream.live === true, vs);
+
+  // shareOpen false limpa e bloqueia
+  host.send({ t: 'room-update', shareOpen: false });
+  const so = await v1.wait((m) => m.t === 'room' && m.room.shareOpen === false);
+  check('shareOpen false clears viewer streams', so.room.streams.length === 0 && so.room.stream.live === false, so);
+  v1.send({ t: 'stream', info: LIVE });
+  const sc = await v1.wait((m) => m.t === 'error' && m.code === 'share-closed');
+  check('viewer stream when closed -> share-closed', !!sc);
+  host.send({ t: 'room-update', shareOpen: true });
+  await v1.wait((m) => m.t === 'room' && m.room.shareOpen === true);
+
+  // palco cheio: host + 3 viewers ao vivo, o 5o recebe stage-full
+  const v3 = new Client(code);
+  const v4 = new Client(code);
+  await Promise.all([v3.opened, v4.opened]);
+  v3.send({ t: 'join', v: 2, code, role: 'viewer', name: 'Eva' });
+  v4.send({ t: 'join', v: 2, code, role: 'viewer', name: 'Fabio' });
+  await v3.wait((m) => m.t === 'joined');
+  await v4.wait((m) => m.t === 'joined');
+  host.send({ t: 'stream', info: { live: true, source: 'monitor', audio: 'system', audioEnabled: true, width: 1920, height: 1080, fps: 60 } });
+  v1.send({ t: 'stream', info: LIVE });
+  v2.send({ t: 'stream', info: LIVE });
+  v3.send({ t: 'stream', info: LIVE });
+  await host.wait((m) => m.t === 'room' && m.room.streams.length === 4);
+  v4.send({ t: 'stream', info: LIVE });
+  const sf = await v4.wait((m) => m.t === 'error' && m.code === 'stage-full');
+  check('5th live stream -> stage-full', !!sf);
+  const mk = host.msgs.length;
+  v3.send({ t: 'stream', info: { ...LIVE, live: false } });
+  await host.wait((m) => m.t === 'room' && m.room.streams.length === 3, 5000, mk);
+  v4.send({ t: 'stream', info: LIVE });
+  await host.wait((m) => m.t === 'room' && m.room.streams.length === 4 && m.room.streams.some((x) => x.name === 'Fabio'), 5000, mk);
+  check('slot freed -> 5th can go live', true);
+  v3.ws.terminate();
+  v4.ws.terminate();
+  const mk2 = host.msgs.length;
+  v1.send({ t: 'stream', info: { ...LIVE, live: false } });
+  v2.send({ t: 'stream', info: { ...LIVE, live: false } });
+  await host.wait((m) => m.t === 'room' && m.room.streams.length === 1 && m.room.viewers === 2, 5000, mk2);
 
   // stream ao vivo
   host.send({ t: 'stream', info: { live: true, source: 'monitor', audio: 'system', audioEnabled: true, width: 1920, height: 1080, fps: 60 } });
-  const sr = await v2.wait((m) => m.t === 'room' && m.room.stream.live === true);
+  const sr = await v2.wait((m) => m.t === 'room' && m.room.stream.source === 'monitor' && m.room.streams.some((x) => x.host));
   check('stream live broadcast', sr.room.stream.source === 'monitor' && sr.room.stream.startedAt > 0, sr);
   const lst2 = await api('/api/rooms');
   check('list reflects live stream', lst2.body.rooms.find((r) => r.code === code)?.stream.live === true, lst2.body);
@@ -154,7 +212,7 @@ async function main() {
   // host volta dentro da graça
   host = new Client(code);
   await host.opened;
-  host.send({ t: 'join', code, role: 'host', hostKey, name: 'Ana' });
+  host.send({ t: 'join', v: 2, code, role: 'host', hostKey, name: 'Ana' });
   await host.wait((m) => m.t === 'joined');
   const back = await v1.wait((m) => m.t === 'room' && m.room.hostOnline === true, 5000, mark);
   check('host rejoin in grace -> hostOnline true', !!back);

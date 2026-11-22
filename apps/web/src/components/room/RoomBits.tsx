@@ -22,7 +22,12 @@ export function RoomMeta({ room }: { room: RoomSummary }) {
         <Icon name="eye" />
         {viewersLabel(room.viewers)}
       </span>
-      {s.live && s.source && (
+      {(room.streams?.length ?? 0) > 1 ? (
+        <span>
+          <Icon name="grid" />
+          {room.streams.length} telas ao vivo
+        </span>
+      ) : s.live && s.source && (
         <span>
           <Icon name={s.source === 'monitor' ? 'monitor' : s.source === 'window' ? 'window' : 'tab'} />
           {SURFACE_LABEL[s.source]}

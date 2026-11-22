@@ -29,7 +29,13 @@ namespace AlexandrusPonte
         {
             TcpListener l = new TcpListener(IPAddress.Loopback, port);
             l.Start();
+            try { Console.Title = "Alexandrus Ponte"; } catch (Exception) { }
             Console.WriteLine("Alexandrus Ponte " + Version + " — ouvindo em ws://127.0.0.1:" + port);
+            Console.WriteLine();
+            Console.WriteLine("  Pronto! Deixe esta janela aberta (pode minimizar) e volte ao Alexandrus.");
+            Console.WriteLine("  Na sala, escolha \"Jogo ou aplicativo\": a Ponte aparece sozinha.");
+            Console.WriteLine("  Para desligar, feche esta janela.");
+            Console.WriteLine();
             while (true)
             {
                 TcpClient tc = l.AcceptTcpClient();

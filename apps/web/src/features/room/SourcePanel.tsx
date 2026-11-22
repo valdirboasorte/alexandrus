@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { AeroButton } from '../../components/ui/AeroButton.tsx';
 import { Icon } from '../../components/ui/Icon.tsx';
 import { AeroToggle, Note, Segmented } from '../../components/ui/controls.tsx';
 import type { CaptureSettings, SourceChoice } from '../../lib/capture.ts';
-import type { PonteClient, PonteStatus } from '../../lib/ponte.ts';
+import { probePonte, type PonteClient, type PonteStatus } from '../../lib/ponte.ts';
 import { PonteSessions } from './PonteSessions.tsx';
+import { PonteSetup } from './PonteSetup.tsx';
 import { QualityControls } from './QualityControls.tsx';
 import { SourceGlyph } from './SourceGlyph.tsx';
 import type { AudioRequest } from './useHostSession.ts';
 
 const SOURCES: { id: SourceChoice; title: string; desc: string }[] = [
-  { id: 'app', title: 'Jogo ou aplicativo', desc: 'A janela do jogo, com o som só dele' },
+  { id: 'browser', title: 'Aba do navegador', desc: 'Jogos, vídeos e sites, com o som só da aba' },
+  { id: 'app', title: 'Jogo ou aplicativo', desc: 'Programa do PC, com o som só dele (Ponte)' },
   { id: 'monitor', title: 'Tela inteira', desc: 'Tudo o que aparece no monitor' },
   { id: 'window', title: 'Janela', desc: 'Um programa específico' },
-  { id: 'browser', title: 'Aba do navegador', desc: 'Um vídeo, um site, com o som da aba' },
 ];
 
-const LOCAL_ORIGIN = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+/** Intervalo da procura automática pela Ponte enquanto ela é necessária. */
+const PONTE_POLL_MS = 2500;
 
 type MonitorAudio = 'ponte-app' | 'ponte-exclude' | 'system';
 type WindowAudio = 'browser' | 'ponte-app';
@@ -41,7 +42,8 @@ interface Props {
  * verdade; o que depende da Ponte só fica ativo quando a Ponte responde.
  */
 export function SourcePanel(p: Props) {
-  const [choice, setChoice] = useState<SourceChoice>(p.windows ? 'app' : 'browser');
+  // A aba é o caminho que funciona sem nada instalado: começa por ela.
+  const [choice, setChoice] = useState<SourceChoice>('browser');
   const [monitorAudio, setMonitorAudio] = useState<MonitorAudio>('ponte-app');
   const [windowAudio, setWindowAudio] = useState<WindowAudio>('browser');
   const [app, setApp] = useState<{ pid: number; name: string } | null>(null);
@@ -52,21 +54,32 @@ export function SourcePanel(p: Props) {
   const needsPonte =
     p.audioEnabled && (choice === 'app' || (choice === 'monitor' && monitorAudio !== 'system') || (choice === 'window' && windowAudio === 'ponte-app'));
 
-  const connectPonte = useCallback(() => {
-    if (p.ponteStatus !== 'ready' && p.ponteStatus !== 'connecting') void p.ponte.connect();
-  }, [p.ponte, p.ponteStatus]);
-
-  // Conecta à Ponte quando uma opção que precisa dela está escolhida. Fora do
-  // localhost isso pode abrir o pedido de "rede local" do navegador, então lá
-  // só acontece depois de um clique (ver `pick`).
+  // Enquanto uma opção que usa a Ponte está escolhida, procura por ela sozinha
+  // (GET /status, sem abrir WebSocket) e conecta assim que ela aparece.
+  // Só começa depois que a pessoa escolhe essa opção (um clique), porque o
+  // navegador pode pedir permissão de "rede local".
+  // A Ponte atende uma aba por vez: só conecta sozinho se ela estiver livre,
+  // senão duas abas ficariam se derrubando. Em uso: a pessoa decide.
+  const [busyElsewhere, setBusyElsewhere] = useState(false);
   useEffect(() => {
-    if (LOCAL_ORIGIN && needsPonte && p.windows && p.ponteStatus === 'idle') connectPonte();
-  }, [needsPonte, p.windows, p.ponteStatus, connectPonte]);
+    if (!needsPonte || !p.windows || ponteReady) return;
+    let alive = true;
+    const look = async () => {
+      if (p.ponte.status === 'connecting' || p.ponte.status === 'ready') return;
+      const info = await probePonte(undefined, 2000);
+      if (!alive) return;
+      setBusyElsewhere(!!info?.connected);
+      if (info && !info.connected) void p.ponte.connect();
+    };
+    void look();
+    const id = window.setInterval(look, PONTE_POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [needsPonte, p.windows, ponteReady, p.ponte]);
 
-  const pick = (next: () => void, usesPonte: boolean) => {
-    next();
-    if (usesPonte && p.windows && p.audioEnabled) connectPonte();
-  };
+  const pick = (next: () => void) => next();
 
   const onPickApp = useCallback((pid: number, name: string) => setApp({ pid, name }), []);
   const onPickExcluded = useCallback((pid: number, name: string) => setExcluded({ pid, name }), []);
@@ -90,7 +103,8 @@ export function SourcePanel(p: Props) {
   }
 
   const req = request();
-  const silentWarning = p.audioEnabled && req.kind === 'none';
+  // Sem a Ponte, o cartão de instalação já explica; o aviso só vale depois.
+  const silentWarning = p.audioEnabled && req.kind === 'none' && !(needsPonte && p.windows && !ponteReady);
 
   return (
     <div className="source-panel">
@@ -104,12 +118,7 @@ export function SourcePanel(p: Props) {
               role="radio"
               aria-checked={choice === s.id}
               className="source-tile"
-              onClick={() =>
-                pick(
-                  () => setChoice(s.id),
-                  s.id === 'app' || (s.id === 'monitor' && monitorAudio !== 'system') || (s.id === 'window' && windowAudio === 'ponte-app'),
-                )
-              }
+              onClick={() => pick(() => setChoice(s.id))}
             >
               <SourceGlyph kind={s.id} />
               <span className="source-tile__title">{s.title}</span>
@@ -143,7 +152,7 @@ export function SourcePanel(p: Props) {
             <Segmented
               label="De onde vem o som da janela"
               value={windowAudio}
-              onChange={(v) => pick(() => setWindowAudio(v), v === 'ponte-app')}
+              onChange={(v) => pick(() => setWindowAudio(v))}
               options={[
                 { value: 'browser', label: 'Pelo navegador' },
                 { value: 'ponte-app', label: 'Pela Ponte', disabled: !p.windows },
@@ -162,7 +171,7 @@ export function SourcePanel(p: Props) {
             <Segmented
               label="Som da tela inteira"
               value={monitorAudio}
-              onChange={(v) => pick(() => setMonitorAudio(v), v !== 'system')}
+              onChange={(v) => pick(() => setMonitorAudio(v))}
               options={[
                 { value: 'ponte-app', label: 'Um app', disabled: !p.windows },
                 { value: 'ponte-exclude', label: 'Tudo menos a call', disabled: !p.windows },
@@ -187,28 +196,7 @@ export function SourcePanel(p: Props) {
         {needsPonte && !p.windows && <Note tone="warn">O som de aplicativos precisa da Alexandrus Ponte, que só existe para Windows.</Note>}
 
         {needsPonte && p.windows && !ponteReady && (
-          <Note tone={p.ponteStatus === 'connecting' ? 'info' : 'warn'} icon="bridge">
-            {p.ponteStatus === 'connecting' ? (
-              'Procurando a Alexandrus Ponte no seu computador…'
-            ) : (
-              <>
-                {p.ponteStatus === 'idle'
-                  ? 'O som só do jogo vem pela Alexandrus Ponte. '
-                  : 'A Ponte não respondeu. Para levar o som só do jogo, abra a '}
-                {p.ponteStatus !== 'idle' && (
-                  <Link to="/ponte" target="_blank">
-                    Alexandrus Ponte
-                  </Link>
-                )}
-                {p.ponteStatus !== 'idle' && '.'}
-                <span className="note-actions">
-                  <AeroButton size="sm" variant="glass" icon={p.ponteStatus === 'idle' ? 'bridge' : 'refresh'} onClick={connectPonte}>
-                    {p.ponteStatus === 'idle' ? 'Conectar à Ponte' : 'Procurar de novo'}
-                  </AeroButton>
-                </span>
-              </>
-            )}
-          </Note>
+          <PonteSetup status={p.ponteStatus} busyElsewhere={busyElsewhere} onTakeOver={() => void p.ponte.connect()} />
         )}
 
         {needsPonte && ponteReady && (

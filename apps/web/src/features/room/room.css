@@ -460,6 +460,58 @@
   margin-top: 10px;
 }
 
+.ponte-setup {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(225, 245, 255, 0.65));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(10, 100, 200, 0.16);
+}
+
+.ponte-setup__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.ponte-setup__title svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--sky-1);
+}
+
+.ponte-setup__steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: 0.93rem;
+}
+
+.ponte-setup__steps li::marker {
+  font-weight: 800;
+  color: var(--sky-1);
+}
+
+.ponte-setup__aside {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: var(--ink-2);
+}
+
+.ponte-setup__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink-2);
+}
+
 .ponte-pick {
   display: grid;
   gap: 8px;

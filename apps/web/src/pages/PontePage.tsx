@@ -30,8 +30,15 @@ export function PontePage() {
           <section className="prose-panel glass glass--frost" aria-labelledby="usar">
             <h2 id="usar">Como usar</h2>
             <ul>
-              <li>Abra a Ponte antes de transmitir. Ela fica numa janelinha de console e não precisa de instalação nem de administrador.</li>
-              <li>No Alexandrus, escolha “Jogo ou aplicativo”. A lista mostra os programas que estão tocando som agora; escolha o jogo.</li>
+              <li>
+                Baixe e abra a Ponte. Ela fica numa janelinha e não precisa de instalação nem de administrador. Como o arquivo ainda não tem
+                assinatura digital, o Windows pode mostrar “O Windows protegeu o computador”: clique em <strong>Mais informações</strong> e depois
+                em <strong>Executar assim mesmo</strong>. Se o Chrome perguntar sobre o download, escolha <strong>Manter</strong>.
+              </li>
+              <li>
+                No Alexandrus, escolha “Jogo ou aplicativo”. A sala encontra a Ponte sozinha (o navegador pode pedir permissão de rede local:
+                permita) e mostra os programas que estão tocando som agora; escolha o jogo.
+              </li>
               <li>Selecione a janela do jogo (ou o monitor) no seletor do navegador. Pronto: imagem do navegador, som da Ponte.</li>
             </ul>
             {hasDownload ? (

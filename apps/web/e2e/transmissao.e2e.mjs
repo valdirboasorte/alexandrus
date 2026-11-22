@@ -109,6 +109,13 @@ try {
   if (usePonte) {
     await host.getByRole('radio', { name: /Tela inteira/ }).click();
     await host.getByRole('radio', { name: 'Um app' }).click();
+    // A Ponte atende uma aba por vez: se outra aba estiver usando, assumir.
+    await host.waitForSelector('.ponte-item, button:has-text("Usar nesta aba")', { timeout: 15000 });
+    const takeOver = host.getByRole('button', { name: 'Usar nesta aba' });
+    if (await takeOver.count()) {
+      log('Ponte em uso em outra aba: assumindo');
+      await takeOver.click();
+    }
     await host.waitForSelector('.ponte-item', { timeout: 10000 });
     const item = host.locator('.ponte-item', { hasText: appName }).first();
     await item.click();

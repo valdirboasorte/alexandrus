@@ -191,6 +191,9 @@ try {
     await viewer.waitForTimeout(2500);
     const wAfter = await viewerWidth();
     log('com 35% de perda e 700 ms:', JSON.stringify(after), 'largura no espectador:', wAfter);
+    // os controles somem com o mouse parado: mexer antes de clicar
+    await host.mouse.move(640, 400);
+    await host.mouse.move(650, 420);
     await host.getByRole('button', { name: 'Conexão' }).click();
     await host.waitForTimeout(2000);
     const adaptText = await host.locator('.host-stats__adapt').first().innerText().catch(() => '(sem aviso)');

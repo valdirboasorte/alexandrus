@@ -15,7 +15,8 @@ namespace AlexandrusPonte
             bool list = false, noOrigin = false, exclude = false;
             string[] capArgs = null;
             HashSet<string> origins = new HashSet<string>(new string[] {
-                "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8790", "http://127.0.0.1:8790" });
+                "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8790", "http://127.0.0.1:8790",
+                "https://alexandrus.vercel.app" });
             for (int i = 0; i < args.Length; i++)
             {
                 string a = args[i];

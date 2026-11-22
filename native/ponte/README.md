@@ -46,7 +46,7 @@ Com o Ponte rodando, verifica que uma origem não permitida recebe 403, faz hell
 ## Segurança
 
 - Escuta apenas em `127.0.0.1`.
-- Checa o cabeçalho `Origin` contra uma lista: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8790`, `http://127.0.0.1:8790` e as passadas com `--allow-origin`. Origem ausente ou fora da lista recebe `403 Forbidden` (ausente só é aceita com `--allow-no-origin`).
+- Checa o cabeçalho `Origin` contra uma lista: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8790`, `http://127.0.0.1:8790`, o site publicado `https://alexandrus.vercel.app` e as passadas com `--allow-origin`. Origem ausente ou fora da lista recebe `403 Forbidden` (ausente só é aceita com `--allow-no-origin`).
 - Um cliente por vez: nova conexão substitui a anterior. Mensagens de entrada limitadas a 64 KB.
 
 ## Limitações conhecidas

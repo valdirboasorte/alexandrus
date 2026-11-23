@@ -6,14 +6,20 @@ import { Icon } from '../ui/Icon.tsx';
 import './radio.css';
 
 /*
- * Rádio Aero: o mix do YouTube tocando pelo player oficial (IFrame API), num
- * cartão de vidro no canto. Regras do YouTube que este componente segue:
- * - o player fica visível enquanto toca (mínimo 200×200, nada por cima dele);
- *   fechar o cartão pausa, então nunca toca "escondido";
- * - só começa a tocar depois do clique de quem abriu;
- * - youtube-nocookie.com: sem cookies de rastreio até a pessoa dar play.
+ * Rádio Aero: o mix do YouTube tocando pelo player oficial (IFrame API).
+ *
+ * Começa sozinha no primeiro clique/toque/tecla em qualquer lugar do site
+ * (nenhum navegador deixa tocar som antes disso), já minimizada: um mini
+ * player no canto. Dá para expandir para o cartão completo (lista de faixas,
+ * volume) ou desligar; desligada, ela não volta sozinha nas próximas visitas.
+ *
+ * Regras do YouTube que este componente segue:
+ * - o player fica visível enquanto toca, com no mínimo 200×200 e nada por
+ *   cima dele (o mini player é exatamente o mínimo); desligar pausa;
+ * - só toca sozinho com o player visível na tela;
+ * - youtube-nocookie.com: sem cookies de rastreio até tocar.
  * Nas salas (/sala/…) a rádio pausa e some: não pode vazar para dentro de uma
- * transmissão nem tocar por cima de uma.
+ * transmissão nem tocar por cima de uma. Ao sair da sala, volta a tocar.
  */
 
 interface YTPlayer {
@@ -54,6 +60,8 @@ declare global {
 const PLAYING = 1;
 const POS_KEY = 'alexandrus:radio:pos';
 const VOL_KEY = 'alexandrus:radio:vol';
+/** A pessoa desligou a rádio: não começa sozinha de novo. */
+const OFF_KEY = 'alexandrus:radio:off';
 
 let apiPromise: Promise<YTNamespace> | null = null;
 
@@ -98,6 +106,23 @@ function save(key: string, v: number) {
   }
 }
 
+function readOff() {
+  try {
+    return localStorage.getItem(OFF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveOff(off: boolean) {
+  try {
+    if (off) localStorage.setItem(OFF_KEY, '1');
+    else localStorage.removeItem(OFF_KEY);
+  } catch {
+    /* sem armazenamento */
+  }
+}
+
 function clock(t: number) {
   const s = Math.max(0, Math.floor(t));
   const h = Math.floor(s / 3600);
@@ -107,15 +132,17 @@ function clock(t: number) {
 }
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
+/** off = só a pílula; mini = player mínimo no canto; full = cartão completo. */
+type Mode = 'off' | 'mini' | 'full';
 
 export function Radio() {
   const { pathname } = useLocation();
   const inRoom = pathname.startsWith('/sala/');
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('off');
   const [status, setStatus] = useState<Status>('idle');
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(() => readNumber(POS_KEY, RADIO.firstStart, 0, RADIO.length));
-  const [volume, setVolume] = useState(() => readNumber(VOL_KEY, 60, 0, 100));
+  const [volume, setVolume] = useState(() => readNumber(VOL_KEY, 40, 0, 100));
   const [list, setList] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -124,13 +151,21 @@ export function Radio() {
   const timeRef = useRef(time);
   timeRef.current = time;
   const listRef = useRef<HTMLOListElement>(null);
+  /** Já começou alguma vez nesta visita (o clique inicial só vale uma vez). */
+  const startedRef = useRef(false);
+  /** Estava tocando quando entrou numa sala: volta a tocar ao sair. */
+  const resumeRef = useRef(false);
+  const inRoomRef = useRef(inRoom);
+  inRoomRef.current = inRoom;
 
   const current = trackAt(time);
   const track = RADIO_TRACKS[current];
 
-  /** Abre o cartão e toca (o clique de quem abriu é o que libera o som). */
-  const openAndPlay = useCallback(() => {
-    setOpen(true);
+  /** Mostra o player e toca. Sempre depois de uma interação de quem está no site. */
+  const start = useCallback((next: Exclude<Mode, 'off'>) => {
+    startedRef.current = true;
+    saveOff(false);
+    setMode((m) => (m === 'full' ? 'full' : next));
     const p = playerRef.current;
     if (p) {
       p.playVideo();
@@ -159,9 +194,18 @@ export function Radio() {
             onReady: (e) => {
               setStatus('ready');
               e.target.setVolume(volumeRef.current);
-              e.target.playVideo();
+              if (inRoomRef.current) resumeRef.current = true;
+              else e.target.playVideo();
             },
-            onStateChange: (e) => setPlaying(e.data === PLAYING),
+            onStateChange: (e) => {
+              // nunca toca escondido: se começou enquanto a pessoa já estava numa sala, pausa e espera
+              if (e.data === PLAYING && inRoomRef.current) {
+                resumeRef.current = true;
+                e.target.pauseVideo();
+                return;
+              }
+              setPlaying(e.data === PLAYING);
+            },
             onError: () => setStatus('error'),
           },
         });
@@ -169,18 +213,45 @@ export function Radio() {
       .catch(() => setStatus('error'));
   }, []);
 
-  /** Fechar = pausar. A rádio nunca toca com o player escondido. */
-  const close = useCallback(() => {
+  /** Desligar = pausar e voltar para a pílula. Lembra a escolha. */
+  const turnOff = useCallback(() => {
     playerRef.current?.pauseVideo();
     setPlaying(false);
-    setOpen(false);
+    setMode('off');
     setList(false);
+    saveOff(true);
   }, []);
 
-  // entrou numa sala: pausa e fecha
+  // Começa sozinha na primeira interação com o site (fora das salas), se a pessoa não desligou.
   useEffect(() => {
-    if (inRoom) close();
-  }, [inRoom, close]);
+    if (inRoom || startedRef.current || readOff()) return;
+    const go = (e: Event) => {
+      if (e instanceof KeyboardEvent && (e.key === 'Tab' || e.key === 'Shift')) return;
+      start('mini');
+    };
+    const opts = { capture: true, once: true } as const;
+    window.addEventListener('pointerdown', go, opts);
+    window.addEventListener('keydown', go, opts);
+    return () => {
+      window.removeEventListener('pointerdown', go, opts);
+      window.removeEventListener('keydown', go, opts);
+    };
+  }, [inRoom, start]);
+
+  // Entrou numa sala: pausa (e lembra se estava tocando). Saiu: volta a tocar.
+  useEffect(() => {
+    const p = playerRef.current;
+    if (inRoom) {
+      if (p && p.getPlayerState() === PLAYING) {
+        resumeRef.current = true;
+        p.pauseVideo();
+      }
+      setList(false);
+    } else if (resumeRef.current) {
+      resumeRef.current = false;
+      p?.playVideo();
+    }
+  }, [inRoom]);
 
   // posição: acompanha a faixa e lembra onde parou
   useEffect(() => {
@@ -206,17 +277,17 @@ export function Radio() {
     listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'center' });
   }, [list]);
 
-  // Esc fecha a lista, depois o cartão
+  // Esc: fecha a lista, depois minimiza o cartão
   useEffect(() => {
-    if (!open) return;
+    if (mode !== 'full') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (list) setList(false);
-      else close();
+      else setMode('mini');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, list, close]);
+  }, [mode, list]);
 
   const seek = (t: number) => {
     const p = playerRef.current;
@@ -229,7 +300,7 @@ export function Radio() {
 
   const toggle = () => {
     const p = playerRef.current;
-    if (!p) return openAndPlay();
+    if (!p) return start('mini');
     if (p.getPlayerState() === PLAYING) p.pauseVideo();
     else p.playVideo();
   };
@@ -241,10 +312,13 @@ export function Radio() {
   };
   const next = () => seek(RADIO_TRACKS[Math.min(RADIO_TRACKS.length - 1, current + 1)].at);
 
+  const mini = mode === 'mini';
+  const full = mode === 'full';
+
   return (
     <>
-      {!open && !inRoom && (
-        <button type="button" className="radio-launch glass glass--frost" onClick={openAndPlay} aria-label="Abrir a Rádio Aero e tocar">
+      {mode === 'off' && !inRoom && (
+        <button type="button" className="radio-launch glass glass--frost" onClick={() => start('mini')} aria-label="Ligar a Rádio Aero">
           <span className="radio-launch__disc" aria-hidden>
             <Icon name="music" />
           </span>
@@ -255,20 +329,23 @@ export function Radio() {
         </button>
       )}
 
-      {/* Fica montado mesmo fechado ou numa sala: o player do YouTube continua de onde parou. */}
-      <section className="radio glass glass--frost" hidden={!open || inRoom} aria-label="Rádio Aero">
-        <header className="radio__head">
-          <span className="radio__disc" data-spin={playing || undefined} aria-hidden>
-            <Icon name="music" />
-          </span>
-          <span className="radio__title">
-            <strong>Rádio Aero</strong>
-            <span>pelo YouTube · {RADIO.channel}</span>
-          </span>
-          <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar e pausar a rádio" onClick={close} />
-        </header>
+      {/* Fica montado mesmo desligado ou numa sala: o player do YouTube continua de onde parou. */}
+      <section className="radio glass glass--frost" data-mode={mode} hidden={mode === 'off' || inRoom} aria-label="Rádio Aero">
+        {full && (
+          <header className="radio__head">
+            <span className="radio__disc" data-spin={playing || undefined} aria-hidden>
+              <Icon name="music" />
+            </span>
+            <span className="radio__title">
+              <strong>Rádio Aero</strong>
+              <span>pelo YouTube · {RADIO.channel}</span>
+            </span>
+            <AeroButton size="sm" variant="glass" iconOnly icon="minimize" aria-label="Minimizar a rádio" onClick={() => setMode('mini')} />
+            <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Desligar a rádio" onClick={turnOff} />
+          </header>
+        )}
 
-        {/* O player do YouTube: sempre visível enquanto toca, nada por cima. */}
+        {/* O player do YouTube: sempre visível enquanto toca, nada por cima. No mini, exatamente 200×200. */}
         <div className="radio__screen">
           <div ref={hostRef} className="radio__player" />
           {status === 'loading' && <p className="radio__msg">Sintonizando…</p>}
@@ -283,16 +360,20 @@ export function Radio() {
         </div>
 
         <div className="radio__now" aria-live="polite">
-          <span className="radio__track">{track.title}</span>
-          <span className="radio__game">
-            {track.from} · faixa {current + 1} de {RADIO_TRACKS.length} · {clock(time)}
+          <span className="radio__track" title={`${track.title} · ${track.from}`}>
+            {track.title}
           </span>
+          {full && (
+            <span className="radio__game">
+              {track.from} · faixa {current + 1} de {RADIO_TRACKS.length} · {clock(time)}
+            </span>
+          )}
         </div>
 
         <div className="radio__controls">
           <AeroButton size="sm" variant="glass" iconOnly icon="prev" aria-label="Faixa anterior" onClick={prev} disabled={status !== 'ready'} />
           <AeroButton
-            size="md"
+            size={mini ? 'sm' : 'md'}
             variant="blue"
             iconOnly
             icon={playing ? 'pause' : 'play'}
@@ -301,32 +382,41 @@ export function Radio() {
             disabled={status === 'loading'}
           />
           <AeroButton size="sm" variant="glass" iconOnly icon="next" aria-label="Próxima faixa" onClick={next} disabled={status !== 'ready'} />
-          <label className="radio__vol">
-            <Icon name={volume === 0 ? 'volumeOff' : 'volume'} />
-            <span className="visually-hidden">Volume da rádio</span>
-            <input
-              className="aero-range"
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={volume}
-              style={{ ['--fill' as string]: `${volume}%` }}
-              onChange={(e) => setVolume(Number(e.target.value))}
-            />
-          </label>
-          <AeroButton
-            size="sm"
-            variant="glass"
-            iconOnly
-            icon="list"
-            aria-label="Lista de faixas"
-            aria-expanded={list}
-            onClick={() => setList((v) => !v)}
-          />
+          {full ? (
+            <>
+              <label className="radio__vol">
+                <Icon name={volume === 0 ? 'volumeOff' : 'volume'} />
+                <span className="visually-hidden">Volume da rádio</span>
+                <input
+                  className="aero-range"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={volume}
+                  style={{ ['--fill' as string]: `${volume}%` }}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                />
+              </label>
+              <AeroButton
+                size="sm"
+                variant="glass"
+                iconOnly
+                icon="list"
+                aria-label="Lista de faixas"
+                aria-expanded={list}
+                onClick={() => setList((v) => !v)}
+              />
+            </>
+          ) : (
+            <>
+              <AeroButton size="sm" variant="glass" iconOnly icon="maximize" aria-label="Expandir a rádio" onClick={() => setMode('full')} />
+              <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Desligar a rádio" onClick={turnOff} />
+            </>
+          )}
         </div>
 
-        {list && (
+        {full && list && (
           <ol ref={listRef} className="radio__list" aria-label="Faixas do mix">
             {RADIO_TRACKS.map((t, i) => (
               <li key={t.at}>
@@ -342,16 +432,18 @@ export function Radio() {
           </ol>
         )}
 
-        <p className="radio__credit">
-          Mix “{RADIO.title}”, de{' '}
-          <a href={RADIO.channelUrl} target="_blank" rel="noreferrer">
-            {RADIO.channel}
-          </a>
-          , tocando direto do YouTube. Músicas © Nintendo.{' '}
-          <a href={`https://www.youtube.com/watch?v=${RADIO.videoId}`} target="_blank" rel="noreferrer">
-            Ver no YouTube
-          </a>
-        </p>
+        {full && (
+          <p className="radio__credit">
+            Mix “{RADIO.title}”, de{' '}
+            <a href={RADIO.channelUrl} target="_blank" rel="noreferrer">
+              {RADIO.channel}
+            </a>
+            , tocando direto do YouTube. Músicas © Nintendo.{' '}
+            <a href={`https://www.youtube.com/watch?v=${RADIO.videoId}`} target="_blank" rel="noreferrer">
+              Ver no YouTube
+            </a>
+          </p>
+        )}
       </section>
     </>
   );

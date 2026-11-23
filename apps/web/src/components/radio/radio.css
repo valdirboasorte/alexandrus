@@ -283,6 +283,46 @@
   font-weight: 700;
 }
 
+/* mini player: o mínimo que o YouTube permite (200×200), com os controles embaixo */
+.radio[data-mode='mini'] {
+  width: auto;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--r-lg);
+  overflow: visible;
+}
+
+.radio[data-mode='mini'] .radio__screen {
+  width: 200px;
+}
+
+.radio[data-mode='mini'] .radio__player,
+.radio[data-mode='mini'] .radio__player iframe {
+  width: 200px;
+  height: 200px;
+}
+
+.radio[data-mode='mini'] .radio__now {
+  width: 200px;
+  padding: 0 2px;
+}
+
+.radio[data-mode='mini'] .radio__track {
+  font-size: 0.88rem;
+}
+
+.radio[data-mode='mini'] .radio__controls {
+  justify-content: space-between;
+  width: 200px;
+  gap: 2px;
+}
+
+.radio[data-mode='mini'] .radio__controls .aero-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+}
+
 @keyframes radio-spin {
   to {
     transform: rotate(360deg);

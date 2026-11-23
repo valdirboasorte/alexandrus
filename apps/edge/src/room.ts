@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   LIMITS,
   OFFLINE_STREAM,
+  PG_FEATURE,
   PROTOCOL_VERSION,
   normalizeRoomCode,
   type AudioRoute,
@@ -18,7 +19,12 @@ import {
   type StreamInfo,
   type Visibility,
 } from '../../../packages/protocol/src/index.ts';
+import { PlaygroundEngine, type PgActor, type PgContext, type PgResult } from '../../../packages/protocol/src/playground-engine.ts';
 import type { Env } from './env.ts';
+
+const FEATURES = [PG_FEATURE];
+/** Gravações do Playground juntam mudanças por este tempo (o DO não hiberna com o timer pendente). */
+const PG_SAVE_MS = 1500;
 
 const SOURCES: readonly string[] = ['monitor', 'window', 'browser'] satisfies SourceKind[];
 const AUDIOS: readonly string[] = ['none', 'tab', 'window', 'system', 'process', 'process-exclude'] satisfies AudioRoute[];
@@ -151,6 +157,8 @@ interface Att {
   joined: boolean;
   /** A tela deste participante; ausente = offline. */
   stream?: StreamInfo;
+  /** Entrou no Playground: segredo do navegador, id público e se assina o quadro. */
+  pg?: { cid: string; pid: string; paint: boolean };
 }
 
 interface Peer {
@@ -176,11 +184,15 @@ export class Room extends DurableObject<Env> {
   private meta: Meta | null = null;
   private ended = false;
   private buckets = new WeakMap<WebSocket, Bucket>();
+  private pg: PlaygroundEngine | null = null;
+  private pgSaved: { core: unknown; paint: unknown } = { core: undefined, paint: undefined };
+  private pgTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.meta = (await ctx.storage.get<Meta>('meta')) ?? null;
+      this.pgSaved = { core: await ctx.storage.get('pg'), paint: await ctx.storage.get('pgp') };
     });
   }
 
@@ -291,6 +303,10 @@ export class Room extends DurableObject<Env> {
     const joined = this.peers();
     this.meta = null;
     this.ended = true;
+    if (this.pgTimer) clearTimeout(this.pgTimer);
+    this.pgTimer = null;
+    this.pg = null;
+    this.pgSaved = { core: undefined, paint: undefined };
     for (const p of joined) this.send(p.ws, { t: 'ended', reason });
     for (const ws of all) {
       try {
@@ -316,10 +332,12 @@ export class Room extends DurableObject<Env> {
     if (!this.meta || !a?.joined) return;
     const role = a.role;
     try {
-      ws.serializeAttachment({ ...a, role: null, joined: false, stream: undefined } satisfies Att);
+      ws.serializeAttachment({ ...a, role: null, joined: false, stream: undefined, pg: undefined } satisfies Att);
     } catch {
       /* socket fechado */
     }
+    const pgActor = this.pgActor(a);
+    if (pgActor) this.pgDeliver(ws, this.engine().leave(this.pgCtx(ws), pgActor));
     for (const p of this.peers(ws)) this.send(p.ws, { t: 'peer-left', peerId: a.id });
     if (role === 'host') {
       this.meta.hostGoneAt = Date.now();
@@ -329,6 +347,99 @@ export class Room extends DurableObject<Env> {
     } else {
       this.broadcastRoom(ws);
     }
+  }
+
+  /* ---------------- Playground ---------------- */
+
+  private engine(): PlaygroundEngine {
+    if (!this.pg) this.pg = new PlaygroundEngine(this.pgSaved.core, this.pgSaved.paint);
+    return this.pg;
+  }
+
+  private pgActor(a: Att): PgActor | null {
+    return a.pg ? { peer: a.id, cid: a.pg.cid, pid: a.pg.pid, name: a.name, host: a.role === 'host' } : null;
+  }
+
+  private pgCtx(without?: WebSocket): PgContext {
+    return {
+      now: Date.now(),
+      actors: () => this.peers(without).flatMap((p) => {
+        const actor = this.pgActor(p.a);
+        return actor ? [actor] : [];
+      }),
+    };
+  }
+
+  private pgDeliver(from: WebSocket, res: PgResult): void {
+    if (res.sub) {
+      const a = from.deserializeAttachment() as Att | null;
+      if (a?.pg) from.serializeAttachment({ ...a, pg: { ...a.pg, paint: res.sub.on } } satisfies Att);
+    }
+    if (res.out.length) {
+      const targets = this.peers().filter((p) => p.a.pg);
+      for (const d of res.out) {
+        for (const p of targets) {
+          const pg = p.a.pg!;
+          const self = p.ws === from;
+          let ok: boolean;
+          switch (d.to) {
+            case 'all':
+            case 'each':
+              ok = true;
+              break;
+            case 'others':
+              ok = !self;
+              break;
+            case 'sender':
+              ok = self;
+              break;
+            case 'host':
+              ok = p.a.role === 'host';
+              break;
+            case 'paint':
+              ok = pg.paint;
+              break;
+            case 'paint-others':
+              ok = pg.paint && !self;
+              break;
+          }
+          if (!ok) continue;
+          const e = d.to === 'each' ? d.each(this.pgActor(p.a)!) : d.e;
+          if (e) this.send(p.ws, { t: 'pg', e });
+        }
+      }
+    }
+    this.pgPersistSoon();
+  }
+
+  private pgPersistSoon(): void {
+    const pg = this.pg;
+    if (!pg || (!pg.dirtyCore && !pg.dirtyPaint) || this.pgTimer || this.ended) return;
+    this.pgTimer = setTimeout(() => {
+      this.pgTimer = null;
+      if (this.ended || !this.meta) return;
+      const writes: Record<string, unknown> = {};
+      if (pg.dirtyCore) writes.pg = pg.saveCore();
+      if (pg.dirtyPaint) writes.pgp = pg.savePaint();
+      this.pgSaved = { core: writes.pg ?? this.pgSaved.core, paint: writes.pgp ?? this.pgSaved.paint };
+      void this.ctx.storage.put(writes);
+    }, PG_SAVE_MS);
+  }
+
+  private pgMessage(ws: WebSocket, a: Att, raw: unknown): void {
+    const pg = this.engine();
+    if (typeof raw === 'object' && raw !== null && (raw as { k?: unknown }).k === 'sync') {
+      const cid = (raw as { cid?: unknown }).cid;
+      if (typeof cid !== 'string' || !/^[A-Za-z0-9_-]{16,64}$/.test(cid)) return this.fail(ws, 'bad-request');
+      // uma conexão é uma pessoa: trocar de identidade no meio criaria peixes em série
+      if (a.pg && a.pg.cid !== cid) return this.fail(ws, 'not-allowed');
+      const { actor, result } = pg.sync(this.pgCtx(ws), a.id, cid, a.name, a.role === 'host');
+      ws.serializeAttachment({ ...a, pg: { cid, pid: actor.pid, paint: a.pg?.paint ?? false } } satisfies Att);
+      return this.pgDeliver(ws, result);
+    }
+    const actor = this.pgActor(a);
+    if (!actor) return this.fail(ws, 'not-joined');
+    this.pgDeliver(ws, pg.handle(this.pgCtx(), actor, raw));
   }
 
   /* ---------------- ciclo de vida ---------------- */
@@ -443,6 +554,7 @@ export class Room extends DurableObject<Env> {
           role: 'host',
           room,
           peers: ps.map((p) => this.peerInfo(p.a)),
+          features: FEATURES,
         });
         for (const p of ps) {
           this.send(p.ws, { t: 'peer-joined', peer: this.peerInfo(na) });
@@ -461,6 +573,7 @@ export class Room extends DurableObject<Env> {
         role: 'viewer',
         room: this.buildSummary()!,
         peers: ps.map((p) => this.peerInfo(p.a)),
+        features: FEATURES,
       });
       for (const p of ps) this.send(p.ws, { t: 'peer-joined', peer: this.peerInfo(na) });
       this.broadcastRoom();
@@ -524,6 +637,8 @@ export class Room extends DurableObject<Env> {
         this.broadcastRoom();
         return;
       }
+      case 'pg':
+        return this.pgMessage(ws, a, msg.a);
       case 'leave':
         return this.leave(ws, a);
       case 'end':

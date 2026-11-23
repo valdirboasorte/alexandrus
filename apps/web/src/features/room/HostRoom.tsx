@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AeroButton, AeroLink } from '../../components/ui/AeroButton.tsx';
 import { Note } from '../../components/ui/controls.tsx';
@@ -11,6 +11,10 @@ import { OutdatedMessage, RoomBar, RoomMessage } from './RoomChrome.tsx';
 import { ShareCard } from './ShareCard.tsx';
 import { SourcePanel } from './SourcePanel.tsx';
 import { useRoomSession, type RoomSession } from './useRoomSession.ts';
+import type { PlaceId } from '../playground/context.ts';
+import { PlaygroundPanel } from '../playground/PlaygroundPanel.tsx';
+import { usePgVisible } from '../playground/RoomBits.tsx';
+import type { PlaygroundStore } from '../playground/store.ts';
 
 export function HostRoom({ code, hostKey, onBadKey }: { code: string; hostKey: string; onBadKey: () => void }) {
   const [hostName] = useState(() => getSavedName() || 'Anfitrião');
@@ -74,6 +78,13 @@ export function HostRoom({ code, hostKey, onBadKey }: { code: string; hostKey: s
 function HostStudio({ s, windows }: { s: RoomSession; windows: boolean }) {
   const navigate = useNavigate();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [pgOpen, setPgOpen] = useState(false);
+  const [pgPlace, setPgPlace] = useState<PlaceId>('world');
+  const closePg = useCallback(() => setPgOpen(false), []);
+  const pgEnv = useMemo(
+    () => (s.pg && s.room ? { store: s.pg, isHost: true, myName: s.myName, people: s.people, room: s.room, leak: false } : null),
+    [s.pg, s.room, s.myName, s.people],
+  );
 
   return (
     <div className="studio-wrap">
@@ -81,7 +92,9 @@ function HostStudio({ s, windows }: { s: RoomSession; windows: boolean }) {
         room={s.room}
         connection={s.connection}
         actions={
-          confirmEnd ? (
+          <>
+            {s.pg && <StudioPgButton store={s.pg} open={pgOpen} onToggle={() => setPgOpen((o) => !o)} />}
+            {confirmEnd ? (
             <span className="confirm-inline">
               Encerrar para todos?
               <AeroButton size="sm" variant="red" onClick={() => (s.endRoom(), navigate('/', { viewTransition: true }))}>
@@ -95,7 +108,8 @@ function HostStudio({ s, windows }: { s: RoomSession; windows: boolean }) {
             <AeroButton size="sm" variant="glass" icon="power" onClick={() => setConfirmEnd(true)}>
               Encerrar sala
             </AeroButton>
-          )
+          )}
+          </>
         }
       />
 
@@ -145,6 +159,23 @@ function HostStudio({ s, windows }: { s: RoomSession; windows: boolean }) {
           </p>
         </section>
       </main>
+
+      {pgOpen && pgEnv && (
+        <div className="studio-pg">
+          <PlaygroundPanel env={pgEnv} place={pgPlace} onPlace={setPgPlace} onClose={closePg} />
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Antes de transmitir, o anfitrião já pode abrir o Playground (moderar, preparar votações). */
+function StudioPgButton({ store, open, onToggle }: { store: PlaygroundStore; open: boolean; onToggle: () => void }) {
+  const visible = usePgVisible(store, true);
+  if (!visible) return null;
+  return (
+    <AeroButton size="sm" variant="green" icon="sparkle" onClick={onToggle} aria-expanded={open}>
+      Playground
+    </AeroButton>
   );
 }

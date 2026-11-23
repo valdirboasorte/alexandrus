@@ -1,0 +1,223 @@
+/* Lagoa Aqua */
+
+.pg-aqua__tank {
+  position: relative;
+  height: clamp(300px, 46vh, 420px);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 12px 28px -16px rgba(2, 60, 140, 0.65);
+}
+
+.pg-aqua__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* moldura de vidro por cima do tanque */
+.pg-aqua__tank::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, 0.14) 100%);
+}
+
+.pg-aqua__card {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  max-width: calc(100% - 20px);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  animation: pg-aqua-in 220ms var(--ease-out);
+}
+
+.pg-aqua__card strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.pg-aqua__card .pg-chip {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+@keyframes pg-aqua-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.pg-aqua__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pg-aqua__fishbtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px 4px 4px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(120, 190, 240, 0.4);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  touch-action: manipulation;
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+.pg-aqua__fishbtn:active {
+  transform: scale(0.97);
+}
+
+.pg-aqua__fishbtn[aria-pressed='true'] {
+  background: linear-gradient(180deg, #e3f7ff, #bfe9ff);
+  box-shadow: inset 0 0 0 1.5px #2ea5f5;
+}
+
+.pg-aqua__fishbtn:focus-visible,
+.pg-aqua__sp:focus-visible {
+  outline: 3px solid var(--aqua-glow);
+  outline-offset: 2px;
+}
+
+.pg-aqua__fishbtn > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.2;
+}
+
+.pg-aqua__fishbtn strong,
+.pg-aqua__fishbtn small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pg-aqua__fishbtn strong {
+  font-size: 0.86rem;
+}
+
+.pg-aqua__fishbtn small {
+  font-size: 0.74rem;
+  color: var(--ink-2);
+}
+
+.pg-aqua__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #b9c9d8;
+}
+
+.pg-aqua__dot[data-on] {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(63, 207, 58, 0.25);
+}
+
+.pg-aqua__swatch {
+  flex: none;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 40%, #c9f4ff, #6cd4f6);
+}
+
+.pg-aqua__preview {
+  display: grid;
+  place-items: center;
+}
+
+.pg-aqua__preview .pg-aqua__swatch {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #fff, 0 8px 18px -10px rgba(2, 60, 140, 0.6);
+}
+
+.pg-aqua__species {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pg-aqua__sp {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(120, 190, 240, 0.4);
+  color: var(--ink);
+  font: inherit;
+  touch-action: manipulation;
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+.pg-aqua__sp:active {
+  transform: scale(0.95);
+}
+
+.pg-aqua__sp small {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pg-aqua__sp[aria-pressed='true'] {
+  background: linear-gradient(180deg, #e3f7ff, #bfe9ff);
+  box-shadow: inset 0 0 0 2px #2ea5f5;
+}
+
+.pg-aqua__sp:disabled {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.pg-aqua__hue {
+  width: 100%;
+  height: 22px;
+  appearance: none;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, hsl(0 90% 60%), hsl(60 90% 60%), hsl(120 90% 50%), hsl(180 90% 50%), hsl(240 90% 62%), hsl(300 90% 60%), hsl(359 90% 60%));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8), inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.pg-aqua__hue::-webkit-slider-thumb {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, #e3f4ff 60%, #a9d4f5);
+  box-shadow: 0 2px 6px rgba(2, 60, 140, 0.5), inset 0 0 0 1px #fff;
+}
+
+.pg-aqua__hue::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, #e3f4ff 60%, #a9d4f5);
+  box-shadow: 0 2px 6px rgba(2, 60, 140, 0.5);
+}

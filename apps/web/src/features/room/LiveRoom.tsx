@@ -15,7 +15,11 @@ import { SourcePanel } from './SourcePanel.tsx';
 import { DockButton, DockDivider, DockPanel, formatElapsed, Stage, StreamVideo } from './Stage.tsx';
 import { HostStatsView, ViewerStatsView } from './StatsView.tsx';
 import { QualityControls } from './QualityControls.tsx';
-import type { RemoteView, RoomSession } from './useRoomSession.ts';
+import { radioWouldLeak, type RemoteView, type RoomSession } from './useRoomSession.ts';
+import type { PlaceId } from '../playground/context.ts';
+import { PlaygroundPanel } from '../playground/PlaygroundPanel.tsx';
+import { PgDockButtons } from '../playground/RoomBits.tsx';
+import { RoomFx } from '../playground/RoomFx.tsx';
 
 /*
  * O palco da sala, igual para todo mundo. Cada pessoa pode ter uma tela ao
@@ -77,6 +81,9 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
   const [volume, setVolume] = useState(loadVolume);
   const [muted, setMuted] = useState(false);
   const [autoMuted, setAutoMuted] = useState(false);
+  const [pgOpen, setPgOpen] = useState(false);
+  const [pgPlace, setPgPlace] = useState<PlaceId>('world');
+  const [tray, setTray] = useState(false);
   const copy = useCopy();
   const toast = useToast();
   const now = useNow();
@@ -89,7 +96,7 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
   // de quem vem o som: no foco, da tela em foco; no lado a lado, da escolhida (ou da primeira)
   const audioId = grid ? (others.some((x) => x.peerId === audioPick) ? audioPick : focusIsMe ? (others[0]?.peerId ?? null) : focusId) : focusIsMe ? null : focusId;
   const anyLive = streams.length > 0;
-  const idle = useIdle(stageRef, 2800, anyLive && panel === null && !drawer);
+  const idle = useIdle(stageRef, 2800, anyLive && panel === null && !drawer && !tray);
   const { isFull, toggle } = useFullscreen(stageRef, videoRef);
   const close = useCallback(() => setPanel(null), []);
   const togglePanel = (p: Exclude<Panel, null>) => setPanel((cur) => (cur === p ? null : p));
@@ -450,6 +457,20 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
       </DockPanel>
     ));
 
+  /* ---------------- Playground ---------------- */
+  const openPg = useCallback((p: PlaceId) => {
+    setPgPlace(p);
+    setPgOpen(true);
+  }, []);
+  const closePg = useCallback(() => setPgOpen(false), []);
+  const closeTray = useCallback(() => setTray(false), []);
+  const openPoll = useCallback(() => openPg('poll'), [openPg]);
+  const leak = live ? radioWouldLeak(live.route, live.audioProcess) : false;
+  const pgEnv = useMemo(
+    () => (s.pg ? { store: s.pg, isHost, myName: s.myName, people: s.people, room, leak } : null),
+    [s.pg, isHost, s.myName, s.people, room, leak],
+  );
+
   /* ---------------- dock ---------------- */
   const shareHint = s.shareBlock === 'full' ? `Já há ${room.maxPresenters} telas ao vivo` : undefined;
   const dock = (
@@ -501,6 +522,12 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
       )}
       <DockDivider />
       {live && <DockButton icon="sliders" label="Qualidade" onClick={() => togglePanel('quality')} expanded={panel === 'quality'} />}
+      {s.pg && (
+        <>
+          <PgDockButtons store={s.pg} isHost={isHost} open={pgOpen} onToggle={() => setPgOpen((o) => !o)} tray={tray} onTray={setTray} />
+          <DockDivider />
+        </>
+      )}
       <DockButton icon="users" label="Pessoas" onClick={() => togglePanel('people')} expanded={panel === 'people'} />
       <DockButton icon="signal" label="Conexão" onClick={() => togglePanel('stats')} expanded={panel === 'stats'} />
       <DockButton icon={isFull ? 'minimize' : 'maximize'} label={isFull ? 'Sair da tela cheia' : 'Tela cheia'} onClick={toggle} />
@@ -514,7 +541,7 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
   );
 
   return (
-    <div className="live-wrap">
+    <div className="live-wrap" data-pg={pgOpen && pgEnv ? '' : undefined}>
       <Stage
         ref={stageRef}
         media={media}
@@ -539,7 +566,10 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
         }
         panel={panelNode}
         dock={dock}
+        fx={s.pg ? <RoomFx store={s.pg} leak={leak} wheelOpen={pgOpen && pgPlace === 'wheel'} pollChip={!(pgOpen && pgPlace === 'poll')} onPoll={openPoll} tray={tray} onTrayClose={closeTray} /> : null}
       />
+
+      {pgOpen && pgEnv && <PlaygroundPanel env={pgEnv} place={pgPlace} onPlace={setPgPlace} onClose={closePg} />}
 
       {drawer && (
         <div className="drawer-scrim" onClick={(e) => e.target === e.currentTarget && setDrawer(false)}>
@@ -579,3 +609,4 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
     </div>
   );
 }
+

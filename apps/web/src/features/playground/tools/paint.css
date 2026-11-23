@@ -1,0 +1,219 @@
+/* Ateliê — o Paint antigo, refeito em vidro */
+
+.pg-paint__window {
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6fcff, #e3f4ff);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.95),
+    0 0 0 1px rgba(60, 140, 210, 0.35),
+    0 14px 30px -18px rgba(2, 60, 140, 0.7);
+}
+
+.pg-paint__bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 51%),
+    linear-gradient(180deg, #d6efff, #b6dffb);
+  box-shadow: inset 0 -1px 0 rgba(60, 140, 210, 0.3);
+}
+
+.pg-paint__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.84rem;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+.pg-paint__tool:active {
+  transform: scale(0.95);
+}
+
+.pg-paint__tool[aria-pressed='true'] {
+  background: linear-gradient(180deg, #ffffff 0%, #e1f4ff 50%, #c5e8ff 51%, #def3ff 100%);
+  box-shadow: inset 0 0 0 1px rgba(40, 130, 210, 0.55), 0 2px 6px -3px rgba(2, 60, 140, 0.6);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pg-paint__tool:not([aria-pressed='true']):hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+}
+
+.pg-paint__sep {
+  width: 1px;
+  height: 26px;
+  margin: 0 4px;
+  background: rgba(60, 140, 210, 0.35);
+  box-shadow: 1px 0 0 #fff;
+}
+
+.pg-paint__size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 90px;
+}
+
+.pg-paint__size .aero-range {
+  flex: 1;
+  min-width: 0;
+}
+
+.pg-paint__dot {
+  flex: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(5, 44, 99, 0.35), 0 0 0 3px #fff;
+}
+
+.pg-paint__palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26px, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 -1px 0 rgba(60, 140, 210, 0.2);
+}
+
+.pg-paint__swatch,
+.pg-paint__custom {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 26px;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(5, 44, 99, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.45);
+  touch-action: manipulation;
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+.pg-paint__swatch::after {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 50% 2px;
+  border-radius: 5px 5px 3px 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+.pg-paint__swatch:active,
+.pg-paint__custom:active {
+  transform: scale(0.9);
+}
+
+.pg-paint__swatch[aria-checked='true'] {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2ea5f5;
+}
+
+.pg-paint__swatch:focus-visible,
+.pg-paint__tool:focus-visible,
+.pg-paint__custom:focus-within {
+  outline: 3px solid var(--aqua-glow);
+  outline-offset: 2px;
+}
+
+.pg-paint__custom {
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#ff3d2e, #ffc53d, #48b52c, #18c6f2, #9a72ff, #ff6fae, #ff3d2e);
+  color: #fff;
+  cursor: pointer;
+}
+
+.pg-paint__custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pg-paint__custom svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+.pg-paint__board {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  margin: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  /* papel: branco leitoso com um quadriculado de caderno bem leve */
+  background:
+    linear-gradient(rgba(80, 160, 230, 0.07) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(80, 160, 230, 0.07) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(180deg, #ffffff, #f4fbff);
+  box-shadow: inset 0 0 0 1px rgba(60, 140, 210, 0.3), inset 0 2px 6px rgba(2, 60, 140, 0.12);
+}
+
+.pg-paint__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.pg-paint__board[data-eraser] .pg-paint__canvas {
+  cursor: cell;
+}
+
+.pg-paint__pen,
+.pg-paint__author {
+  position: absolute;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(8px, -120%);
+}
+
+.pg-paint__pen {
+  background: linear-gradient(180deg, #4fc0ff, #0b6fd6);
+  color: #fff;
+  box-shadow: 0 2px 6px -2px rgba(2, 60, 140, 0.6);
+}
+
+.pg-paint__author {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(60, 140, 210, 0.45);
+}
+
+.pg-paint__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  font-weight: 800;
+}
+
+.pg-paint__status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 4px 10px 6px;
+  font-size: 0.76rem;
+  color: var(--ink-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(214, 239, 255, 0.8));
+  box-shadow: inset 0 1px 0 rgba(60, 140, 210, 0.2);
+}

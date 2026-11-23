@@ -15,16 +15,19 @@ interface StageProps {
   waiting?: boolean;
   /** Abas das telas ao vivo, logo acima do dock. */
   tabs?: ReactNode;
+  /** Efeitos por cima do vídeo e embaixo dos controles (reações, eventos do Playground). */
+  fx?: ReactNode;
 }
 
 /**
  * O palco: vídeo ocupando tudo, cercado de água azul (nunca preto), com os
  * controles de vidro por cima. Os controles somem quando ninguém mexe.
  */
-export const Stage = forwardRef<HTMLDivElement, StageProps>(function Stage({ media, idle, top, dock, panel, overlay, label, waiting, tabs }, ref) {
+export const Stage = forwardRef<HTMLDivElement, StageProps>(function Stage({ media, idle, top, dock, panel, overlay, label, waiting, tabs, fx }, ref) {
   return (
     <div ref={ref} className="stage" data-idle={idle || undefined} data-waiting={waiting || undefined} tabIndex={-1} aria-label={label}>
       {media}
+      {fx}
       {overlay && <div className="stage__overlay">{overlay}</div>}
       <div className="stage__chrome stage__chrome--top">{top}</div>
       {panel}

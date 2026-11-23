@@ -21,6 +21,7 @@ import type { SenderStats, ViewerStats } from '../../lib/rtc/stats.ts';
 import { SignalingClient, type SignalingState } from '../../lib/signaling.ts';
 import { signalingUrl } from '../../lib/server-url.ts';
 import { RADIO_HOLD_EVENT } from '../../components/radio/Radio.tsx';
+import { PlaygroundStore } from '../playground/store.ts';
 
 const BROWSER_PROCESS = /^(chrome|msedge|brave|opera|vivaldi|firefox|arc)(\.exe)?$/i;
 
@@ -30,7 +31,7 @@ const BROWSER_PROCESS = /^(chrome|msedge|brave|opera|vivaldi|firefox|arc)(\.exe)
  * que o excluído seja o navegador) ou Ponte capturando o navegador. Som da aba,
  * da janela de outro programa e do sistema (o Chrome tira a própria aba) não.
  */
-function radioWouldLeak(route: AudioRoute, process: string | null): boolean {
+export function radioWouldLeak(route: AudioRoute, process: string | null): boolean {
   const isBrowser = !!process && BROWSER_PROCESS.test(process);
   if (route === 'process-exclude') return !isBrowser;
   if (route === 'process') return isBrowser;
@@ -119,6 +120,9 @@ export interface RoomSession {
   readRemoteStats: (id: string) => Promise<ViewerStats> | null;
   reconnect: (id: string) => void;
 
+  /** Playground da sala (preso à mesma conexão de sinalização). */
+  pg: PlaygroundStore | null;
+
   /* sala */
   error: string | null;
   clearError: () => void;
@@ -171,6 +175,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
   const [ended, setEnded] = useState<RoomSession['ended']>(null);
   const [fatal, setFatal] = useState<RoomFatal | null>(null);
   const [ponteStatus, setPonteStatus] = useState<PonteStatus>('idle');
+  const [pg, setPg] = useState<PlaygroundStore | null>(null);
 
   const sigRef = useRef<SignalingClient | null>(null);
   const bcRef = useRef<Broadcaster | null>(null);
@@ -282,6 +287,9 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
   useEffect(() => {
     const sig = new SignalingClient(signalingUrl(code));
     sigRef.current = sig;
+    // criado antes de qualquer mensagem chegar: o Playground vê o 'joined'
+    const store = new PlaygroundStore(sig);
+    setPg(store);
     const bc = new Broadcaster(sig, iceRef.current, refreshWatchers);
     bcRef.current = bc;
     const receivers = receiversRef.current;
@@ -391,6 +399,8 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
       for (const rx of receivers.values()) rx.close(false);
       receivers.clear();
       bc.close();
+      store.dispose();
+      setPg(null);
       sig.close();
       ponte.dispose();
     };
@@ -534,6 +544,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
     updateSettings,
     readStats,
     remote,
+    pg,
     watch,
     readRemoteStats,
     reconnect,

@@ -10,6 +10,10 @@
  *   remove tipos de arquivos dentro de node_modules.
  */
 
+import type { PgAction, PgEvent } from './playground.ts';
+
+export * from './playground.ts';
+
 export const PROTOCOL_VERSION = 2;
 
 /* ------------------------------------------------------------------ */
@@ -229,13 +233,15 @@ export type ClientMessage =
   /** Só o anfitrião: renomear sala, visibilidade, deixar os outros compartilharem. */
   | { t: 'room-update'; name?: string; visibility?: Visibility; shareOpen?: boolean }
   | { t: 'ping'; ts: number }
+  /** Playground (só depois de 'joined', se o servidor anunciou PG_FEATURE). */
+  | { t: 'pg'; a: PgAction }
   | { t: 'leave' }
   /** Só o anfitrião: encerra a sala para todos. */
   | { t: 'end' };
 
 export type ServerMessage =
   /** peers = todos os outros participantes já na sala (anfitrião e espectadores). */
-  | { t: 'joined'; you: string; role: Role; room: RoomSummary; peers: PeerInfo[] }
+  | { t: 'joined'; you: string; role: Role; room: RoomSummary; peers: PeerInfo[]; features?: string[] }
   /** Enviados a todos os outros participantes. */
   | { t: 'peer-joined'; peer: PeerInfo }
   | { t: 'peer-left'; peerId: string }
@@ -243,7 +249,8 @@ export type ServerMessage =
   | { t: 'signal'; from: string; data: SignalData }
   | { t: 'ended'; reason: EndReason }
   | { t: 'error'; code: ErrorCode; message: string }
-  | { t: 'pong'; ts: number };
+  | { t: 'pong'; ts: number }
+  | { t: 'pg'; e: PgEvent };
 
 export type EndReason = 'host-ended' | 'host-timeout' | 'expired';
 

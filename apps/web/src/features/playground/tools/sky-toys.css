@@ -1,0 +1,122 @@
+/* Brinquedos do Céu: faixa de vidro com botões brilhantes e um palco de céu. */
+.pg-toys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  height: 100%;
+  min-height: 420px;
+  min-width: 0;
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+.pg-toys__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(201, 239, 255, 0.55));
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 3px 10px rgba(6, 84, 196, 0.18);
+}
+
+.pg-toys__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 34px;
+  padding: 0.25rem 0.7rem 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(10, 134, 214, 0.55);
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #dff5ff 46%,
+    #9ddcf9 52%,
+    #d4f3ff 100%
+  );
+  color: var(--ink);
+  font: 800 0.8rem/1 var(--font-display);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 5px rgba(6, 84, 196, 0.25);
+  transition:
+    transform 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+.pg-toys__btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.pg-toys__btn[aria-pressed='true'] {
+  border-color: rgba(35, 128, 29, 0.75);
+  background: linear-gradient(180deg, #f1ffd0 0%, #c4f26f 46%, #5fc13a 52%, #a6e64c 100%);
+  color: #0d3d12;
+}
+
+.pg-toys__btn--clear {
+  margin-left: auto;
+}
+
+.pg-toys__btn:focus-visible {
+  outline: 3px solid var(--sky-0);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 2px 5px rgba(6, 84, 196, 0.25);
+}
+
+.pg-toys__btn:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pg-toys__btn:hover {
+    transform: translateY(-1px);
+  }
+  .pg-toys__btn:hover:active {
+    transform: scale(0.96);
+  }
+}
+
+.pg-toys__hint {
+  margin: 0;
+  padding: 0 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+
+.pg-toys__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 280px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(180deg, var(--sky-2), var(--sky-4));
+  box-shadow:
+    inset 0 0 0 1px rgba(6, 84, 196, 0.25),
+    0 4px 14px rgba(6, 84, 196, 0.22);
+}
+
+.pg-toys__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}

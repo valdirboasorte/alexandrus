@@ -9,6 +9,7 @@ import {
   type StreamInfo,
   type Visibility,
 } from '../../../packages/protocol/src/index.ts';
+import { PlaygroundEngine, type PgActor } from '../../../packages/protocol/src/playground-engine.ts';
 import { generateHostKey, generateRoomCode } from './codes.ts';
 
 /** Conexão abstrata (WebSocket hoje; outro transporte amanhã). */
@@ -19,6 +20,8 @@ export interface Conn {
   role: Role;
   /** A tela deste participante (offline quando não compartilha). */
   stream: StreamInfo;
+  /** Entrou no Playground: quem é e se está com o quadro aberto. */
+  pg?: { actor: PgActor; paint: boolean };
   send(msg: ServerMessage): void;
   close(): void;
 }
@@ -36,6 +39,8 @@ export interface Room {
   viewers: Map<string, Conn>;
   everHosted: boolean;
   timer: ReturnType<typeof setTimeout> | null;
+  /** Playground da sala (criado no primeiro uso; some junto com a sala). */
+  pg: PlaygroundEngine | null;
 }
 
 export interface CreateRoomInput {
@@ -86,6 +91,7 @@ export class RoomRegistry implements RoomStore {
       viewers: new Map(),
       everHosted: false,
       timer: null,
+      pg: null,
     };
     this.rooms.set(room.code, room);
     room.timer = setTimeout(() => this.end(room, 'expired'), this.unclaimedRoomMs);

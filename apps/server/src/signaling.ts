@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import {
   LIMITS,
   OFFLINE_STREAM,
+  PG_FEATURE,
   PROTOCOL_VERSION,
   normalizeRoomCode,
   type AudioRoute,
@@ -18,6 +19,7 @@ import {
   type StreamInfo,
   type Visibility,
 } from '../../../packages/protocol/src/index.ts';
+import { PlaygroundEngine, type PgContext, type PgResult } from '../../../packages/protocol/src/playground-engine.ts';
 import { generatePeerId } from './codes.ts';
 import type { Conn, Room, RoomRegistry } from './rooms.ts';
 
@@ -121,6 +123,50 @@ function peerInfo(c: Conn): PeerInfo {
   return { id: c.id, name: c.name, role: c.role, joinedAt: c.joinedAt };
 }
 
+const FEATURES = [PG_FEATURE];
+
+/** Conexões que entraram no Playground (opcionalmente sem uma delas, que está saindo). */
+function pgActors(registry: RoomRegistry, room: Room, without?: Conn) {
+  return registry.everyone(room).flatMap((o) => (o !== without && o.pg ? [o.pg.actor] : []));
+}
+
+/** Entrega o resultado do motor: cada destino vira um conjunto de conexões. */
+function deliver(registry: RoomRegistry, room: Room, from: Conn, res: PgResult) {
+  if (res.sub && from.pg) from.pg.paint = res.sub.on;
+  if (!res.out.length) return;
+  const targets = registry.everyone(room).filter((o) => o.pg);
+  for (const d of res.out) {
+    for (const o of targets) {
+      const pg = o.pg!;
+      let ok: boolean;
+      switch (d.to) {
+        case 'all':
+        case 'each':
+          ok = true;
+          break;
+        case 'others':
+          ok = o !== from;
+          break;
+        case 'sender':
+          ok = o === from;
+          break;
+        case 'host':
+          ok = pg.actor.host;
+          break;
+        case 'paint':
+          ok = pg.paint;
+          break;
+        case 'paint-others':
+          ok = pg.paint && o !== from;
+          break;
+      }
+      if (!ok) continue;
+      const e = d.to === 'each' ? d.each(pg.actor) : d.e;
+      if (e) o.send({ t: 'pg', e });
+    }
+  }
+}
+
 export interface Signaling {
   handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void;
   close(): void;
@@ -164,6 +210,12 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
       const c = conn;
       room = null;
       conn = null;
+      if (c.pg && r.pg) {
+        const ctx: PgContext = { now: Date.now(), actors: () => pgActors(registry, r, c) };
+        const res = r.pg.leave(ctx, c.pg.actor);
+        c.pg = undefined;
+        deliver(registry, r, c, res);
+      }
       if (role === 'host') {
         for (const o of r.viewers.values()) o.send({ t: 'peer-left', peerId: c.id });
         registry.hostDisconnected(r, c);
@@ -231,6 +283,7 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
             role: 'host',
             room: registry.summary(target),
             peers: [...target.viewers.values()].map(peerInfo),
+            features: FEATURES,
           });
           for (const v of target.viewers.values()) {
             v.send({ t: 'peer-joined', peer: peerInfo(c) });
@@ -251,6 +304,7 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
           role: 'viewer',
           room: registry.summary(target),
           peers: registry.everyone(target).filter((o) => o !== c).map(peerInfo),
+          features: FEATURES,
         });
         for (const o of registry.everyone(target)) if (o !== c) o.send({ t: 'peer-joined', peer: peerInfo(c) });
         registry.broadcastRoom(target);
@@ -306,6 +360,26 @@ export function createSignaling(registry: RoomRegistry, opts: { isAllowed?: (req
             if (!shareOpen) for (const v of r.viewers.values()) v.stream = { ...OFFLINE_STREAM };
           }
           registry.broadcastRoom(r);
+          return;
+        }
+        case 'pg': {
+          const c = conn;
+          const a = msg.a;
+          const ctx: PgContext = { now: Date.now(), actors: () => pgActors(registry, r) };
+          if (!r.pg) r.pg = new PlaygroundEngine();
+          if (typeof a === 'object' && a !== null && (a as { k?: unknown }).k === 'sync') {
+            const cid = (a as { cid?: unknown }).cid;
+            if (typeof cid !== 'string' || !/^[A-Za-z0-9_-]{16,64}$/.test(cid)) return fail('bad-request');
+            // uma conexão é uma pessoa: trocar de identidade no meio criaria peixes em série
+            if (c.pg && c.pg.actor.cid !== cid) return fail('not-allowed');
+            // duas abas do mesmo navegador são a mesma pessoa (mesmo peixe, mesmo voto)
+            const { actor, result } = r.pg.sync(ctx, c.id, cid, c.name, role === 'host');
+            c.pg = { actor, paint: c.pg?.paint ?? false };
+            deliver(registry, r, c, result);
+            return;
+          }
+          if (!c.pg) return fail('not-joined');
+          deliver(registry, r, c, r.pg.handle(ctx, c.pg.actor, a));
           return;
         }
         case 'leave':

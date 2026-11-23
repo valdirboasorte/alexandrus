@@ -156,6 +156,56 @@ mostra a dica uma vez, na entrada da sala.
 - `GET /api/ice` entrega STUN e, se configurado, credenciais TURN temporárias
   (formato REST do coturn: HMAC-SHA1 com segredo compartilhado).
 
+## Playground
+
+Um mundinho dentro de cada sala para quem assiste brincar sem sair do vídeo:
+aquário compartilhado (Lagoa Aqua), Bolhas com ranking da sala, quadro
+coletivo (Ateliê), roleta (Roda da Sorte), sons (Concha Sonora), brinquedos
+locais (Nuvens), votações (Praça), desafios e eventos visuais (Palco),
+números da sala (Farol), mascote (Ninho) e reações por cima do vídeo.
+
+| Peça | Onde |
+| --- | --- |
+| Tipos, limites, validação, regras de humor/fase | `packages/protocol/src/playground.ts` |
+| Motor (estado, permissões, ritmo, spam) — o mesmo nos dois servidores | `packages/protocol/src/playground-engine.ts` |
+| Ligação no servidor Node / no Durable Object | `apps/server/src/signaling.ts`, `apps/edge/src/room.ts` |
+| Cliente (store, painel, ferramentas, efeitos no palco) | `apps/web/src/features/playground/` |
+
+Decisões:
+
+- **Mesma conexão da sala.** Mensagens `{t:'pg', a}` (cliente) e `{t:'pg', e}`
+  (servidor). O servidor anuncia `features: ['playground']` no `joined`; só quem
+  entra no Playground (`sync`) recebe eventos dele. Página ou servidor antigo
+  continuam funcionando sem o recurso (o painel diz "indisponível").
+- **Identidade.** Cada navegador tem um segredo (`cid`, localStorage) que o
+  servidor nunca repassa; todo mundo vê só um id público (`pid`). Um voto por
+  pessoa, o mesmo peixe ao voltar, silenciamento pelo anfitrião que sobrevive a
+  recarregar a página. Uma conexão não troca de identidade no meio.
+- **Pouco tráfego.** Peixes nadam por uma função da semente e do relógio do
+  servidor; o humor e a fase do mascote saem de carimbos de tempo. Só ações
+  trafegam. O quadro manda traços em pedaços de 60 ms e só para quem está com ele
+  aberto (`sub: paint`). Estatísticas são pedidas enquanto o Farol está aberto.
+- **Servidor decide o que importa.** Sorteio da roleta, quem come a comida,
+  contagem de votos, placar válido das Bolhas (rodada de 60 s, teto de pontos).
+- **Limites.** Intervalo por pessoa e por sala para reações, sons, eventos,
+  comida, roleta, votações e pedidos; teto de traços/pontos no quadro (os mais
+  antigos saem), de peixes, pedidos, sugestões e pessoas guardadas. O anfitrião
+  liga/desliga cada parte, ativa o modo calmo, define quem cria votações e quem
+  limpa o quadro, e silencia participantes.
+- **Persistência.** No Node fica em memória com a sala. No Durable Object vai
+  para o armazenamento (`pg` e `pgp`) agrupado a cada 1,5 s e volta depois da
+  hibernação.
+- **Som.** A Concha Sonora é sintetizada no navegador (Web Audio, nada gravado de
+  terceiros) e toca só na página. Se a transmissão de alguém capta o som do
+  próprio navegador, os efeitos ficam mudos para não entrarem na transmissão.
+  Cada pessoa tem volume e silêncio próprios.
+- **Desempenho.** Fechado, o painel não existe (nenhum laço roda). Canvas a no
+  máximo 60 quadros (aquário 30), pausados com a aba escondida ou fora da tela;
+  só transform/opacity animam; teto de partículas e de reações simultâneas.
+
+Testes: `apps/server/test/playground.test.ts` (motor e WebSocket) e
+`apps/web/e2e/playground.e2e.mjs` (três navegadores reais com transmissão ao vivo).
+
 ## Implantação
 
 | Peça | Onde | Observação |

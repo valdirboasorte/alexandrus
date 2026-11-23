@@ -5,6 +5,7 @@ import {
   PROTOCOL_VERSION,
   normalizeRoomCode,
   type AudioRoute,
+  type ContentKind,
   type EndReason,
   type ErrorCode,
   type LiveStream,
@@ -21,6 +22,7 @@ import type { Env } from './env.ts';
 
 const SOURCES: readonly string[] = ['monitor', 'window', 'browser'] satisfies SourceKind[];
 const AUDIOS: readonly string[] = ['none', 'tab', 'window', 'system', 'process', 'process-exclude'] satisfies AudioRoute[];
+const CONTENTS: readonly string[] = ['motion', 'detail', 'film'] satisfies ContentKind[];
 const MAX_MSGS_PER_SEC = 40;
 const MAX_VIOLATIONS = 3;
 const MAX_SDP = 64 * 1024;
@@ -100,6 +102,10 @@ function sanitizeStream(v: unknown): StreamInfo | null {
   if (v.startedAt === null) info.startedAt = null;
   else if (typeof v.startedAt === 'number' && Number.isFinite(v.startedAt)) info.startedAt = v.startedAt;
   else if (v.startedAt !== undefined) return null;
+  if (v.content !== undefined) {
+    if (typeof v.content !== 'string' || !CONTENTS.includes(v.content)) return null;
+    info.content = v.content as ContentKind;
+  }
   if (info.live && info.startedAt == null) info.startedAt = Date.now();
   if (!info.live) info.startedAt = null;
   return info;

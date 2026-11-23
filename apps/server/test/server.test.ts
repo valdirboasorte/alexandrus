@@ -173,6 +173,19 @@ test('stream do host é transmitido com live true', async () => {
   v.c.ws.close();
 });
 
+test('tela diz o que passa (content): film chega a quem assiste; valor inválido → bad-request', async () => {
+  const { room, hostKey } = await createRoom();
+  const h = await joinHost(room.code, hostKey);
+  const v = await joinViewer(room.code);
+  h.c.send({ t: 'stream', info: { live: true, source: 'browser', audio: 'tab', audioEnabled: true, content: 'film' } });
+  const m = await v.c.waitFor('room', (x) => x.room.stream.live);
+  assert.equal(m.room.streams[0].info.content, 'film');
+  h.c.send({ t: 'stream', info: { live: true, source: 'browser', audio: 'tab', audioEnabled: true, content: 'novela' } });
+  assert.equal((await h.c.waitFor('error')).code, 'bad-request');
+  h.c.ws.close();
+  v.c.ws.close();
+});
+
 test('host encerra → espectadores recebem ended host-ended', async () => {
   const { room, hostKey } = await createRoom();
   const h = await joinHost(room.code, hostKey);

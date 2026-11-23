@@ -53,7 +53,7 @@ Variáveis do servidor: `PORT` (8790), `ALLOWED_ORIGINS` (sites hospedados fora 
 npm test
 ```
 
-Servidor de salas: 20 testes (criação, lista pública, chave do anfitrião, sinalização, sala cheia, queda e volta do anfitrião, várias telas, limite de 4, compartilhamento fechado, página desatualizada).
+Servidor de salas: 21 testes (criação, lista pública, chave do anfitrião, sinalização, sala cheia, queda e volta do anfitrião, várias telas, limite de 4, compartilhamento fechado, página desatualizada).
 
 Ponta a ponta com o Chrome real (precisa de `npm run dev` rodando):
 
@@ -73,6 +73,16 @@ Duas pessoas compartilhando: um espectador também compartilha, um terceiro troc
 node apps/web/e2e/transmissao.e2e.mjs --varias
 ```
 
+Modo filme (envio equilibrado a 12 Mbps, buffer de 500 ms em quem assiste) e rede ruim (35% de perda: a qualidade desce sozinha):
+
+```powershell
+node apps/web/e2e/transmissao.e2e.mjs --filme
+```
+
+```powershell
+node apps/web/e2e/transmissao.e2e.mjs --rede-ruim
+```
+
 ## Estado
 
 Funciona hoje, verificado:
@@ -80,6 +90,7 @@ Funciona hoje, verificado:
 - Página inicial, criar sala, entrar (com prévia da sala), salas públicas, como funciona, sobre, Ponte; desktop e celular.
 - Salas públicas/privadas com código de 6 caracteres e link; anfitrião volta em até 60 s se recarregar a página.
 - Transmissão WebRTC em malha, troca de fonte sem derrubar quem assiste.
+- Modo Filme (“O que vai passar”): mais banda (no mínimo Alta), degradação equilibrada e 500 ms de buffer em quem assiste para não travar; o ajuste automático só baixa a qualidade quando a rede segura o vídeo de verdade (qualityLimitationReason), não em cena parada.
 - Várias pessoas compartilhando na mesma sala (até 4 telas): quem assiste troca de tela pelas abas ou vê todas lado a lado (o som vem de uma só); o anfitrião pode deixar só ele compartilhar.
 - Rádio Aero: o mix “nintendo frutiger aero chill mix 2025” (ninchrisu) tocando por um player do YouTube sempre escondido; na tela só aparece a rádio do site (pílula no canto e cartão com arte própria, lista de faixas e volume), sem marca nem link do YouTube. Começa sozinha no primeiro clique no site; pausada, não volta sozinha na próxima visita; pausa nas salas e volta ao sair. Player escondido/só áudio contraria as regras do YouTube — escolha do dono do site, que pode levar o YouTube a bloquear o player aqui.
 - Som da aba (isolado pelo navegador), som da janela quando o navegador entrega, som do sistema só com consentimento e aviso de eco.

@@ -324,6 +324,12 @@
   color: var(--ink);
 }
 
+.source-panel__content-hint {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+
 .source-tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -752,6 +758,10 @@
 }
 
 .quality--dark .quality__auto-label span {
+  color: var(--ink-on-dark-2);
+}
+
+.quality--dark .quality__hint {
   color: var(--ink-on-dark-2);
 }
 

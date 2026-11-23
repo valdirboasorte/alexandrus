@@ -13,7 +13,7 @@ import {
   type Visibility,
 } from '@protocol';
 import { api } from '../../lib/api.ts';
-import { applyVideoSettings, captureDisplay, CaptureCancelled, QUALITY_BITRATE, type CaptureSettings, type SourceChoice } from '../../lib/capture.ts';
+import { applyVideoSettings, captureDisplay, CaptureCancelled, FILM_BUFFER_MS, QUALITY_BITRATE, type CaptureSettings, type SourceChoice } from '../../lib/capture.ts';
 import { PonteClient, type PonteStatus } from '../../lib/ponte.ts';
 import { Broadcaster, type WatcherConnection } from '../../lib/rtc/Broadcaster.ts';
 import { StreamReceiver, type ReceiverState } from '../../lib/rtc/StreamReceiver.ts';
@@ -211,6 +211,8 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
     for (const id of [...receiversRef.current.keys()]) {
       if (!want.has(id)) dropReceiver(id, peersRef.current.has(id));
     }
+    const bufferFor = (id: string) => (roomRef.current?.streams.find((s) => s.peerId === id)?.info.content === 'film' ? FILM_BUFFER_MS : 0);
+    for (const [id, rx] of receiversRef.current) rx.setBuffer(bufferFor(id));
     for (const id of want) {
       if (receiversRef.current.has(id)) continue;
       const rx = new StreamReceiver(
@@ -221,6 +223,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
         (media) => setRemote((r) => (receiversRef.current.get(id) === rx ? { ...r, [id]: { stream: r[id]?.stream ?? null, media } } : r)),
       );
       receiversRef.current.set(id, rx);
+      rx.setBuffer(bufferFor(id));
       setRemote((r) => ({ ...r, [id]: { stream: null, media: 'connecting' } }));
       rx.start();
     }
@@ -440,6 +443,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
           height: vs.height,
           fps: vs.frameRate ? Math.round(vs.frameRate) : s.fps,
           startedAt: streamInfoRef.current.live ? streamInfoRef.current.startedAt : Date.now(),
+          content: s.content,
         });
         return true;
       } catch (e) {
@@ -472,7 +476,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
         void applyVideoSettings(v, next).then(() => {
           const vs = v.getSettings();
           const info = streamInfoRef.current;
-          if (info.live) publishStream({ ...info, width: vs.width, height: vs.height, fps: vs.frameRate ? Math.round(vs.frameRate) : next.fps });
+          if (info.live) publishStream({ ...info, width: vs.width, height: vs.height, fps: vs.frameRate ? Math.round(vs.frameRate) : next.fps, content: next.content });
         });
       }
       void bcRef.current?.setLimits({ maxBitrate: QUALITY_BITRATE[next.quality].bps, maxFramerate: next.fps, content: next.content, auto: next.auto });

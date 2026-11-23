@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { AeroButton } from '../../components/ui/AeroButton.tsx';
 import { Icon } from '../../components/ui/Icon.tsx';
 import { AeroToggle, Note, Segmented } from '../../components/ui/controls.tsx';
-import type { CaptureSettings, SourceChoice } from '../../lib/capture.ts';
+import { QUALITY_BITRATE, withContent, type CaptureSettings, type SourceChoice } from '../../lib/capture.ts';
 import { probePonte, type PonteClient, type PonteStatus } from '../../lib/ponte.ts';
 import { PonteSessions } from './PonteSessions.tsx';
 import { PonteSetup } from './PonteSetup.tsx';
-import { QualityControls } from './QualityControls.tsx';
+import { CONTENT_HINT, CONTENT_OPTIONS, QualityControls } from './QualityControls.tsx';
 import { SourceGlyph } from './SourceGlyph.tsx';
 import type { AudioRequest } from './useRoomSession.ts';
 
@@ -129,6 +129,18 @@ export function SourcePanel(p: Props) {
       </fieldset>
 
       <fieldset className="source-panel__group">
+        <legend className="source-panel__legend">O que vai passar</legend>
+        <Segmented label="O que vai passar" value={p.settings.content} onChange={(v) => p.onSettings(withContent(p.settings, v))} options={CONTENT_OPTIONS} />
+        <p className="source-panel__content-hint">{CONTENT_HINT[p.settings.content]}</p>
+        {p.settings.content === 'film' && (
+          <p className="source-panel__content-hint">
+            Dica: ponha o vídeo em tela cheia dentro da aba, para ele ocupar a imagem toda. Netflix, Prime Video, Disney+ e afins costumam aparecer
+            pretos em qualquer compartilhamento de tela (proteção contra cópia).
+          </p>
+        )}
+      </fieldset>
+
+      <fieldset className="source-panel__group">
         <legend className="visually-hidden">Som</legend>
         <div className="audio-switch">
           <span className="audio-switch__icon" aria-hidden>
@@ -229,11 +241,11 @@ export function SourcePanel(p: Props) {
           <Icon name="sliders" />
           Qualidade da imagem
           <span className="source-panel__summary-hint">
-            {p.settings.resolution === 'native' ? 'Original' : p.settings.resolution} · {p.settings.fps} FPS
+            {p.settings.resolution === 'native' ? 'Original' : p.settings.resolution} · {p.settings.fps} FPS · {QUALITY_BITRATE[p.settings.quality].label}
           </span>
           <Icon name="chevronDown" className="source-panel__chev" />
         </summary>
-        <QualityControls value={p.settings} onChange={p.onSettings} />
+        <QualityControls value={p.settings} onChange={p.onSettings} hideContent />
       </details>
 
       {silentWarning && (

@@ -1,4 +1,6 @@
-import type { AudioRoute, SourceKind } from '@protocol';
+import type { AudioRoute, ContentKind, SourceKind } from '@protocol';
+
+export type { ContentKind };
 
 /*
  * Captura de tela pelo navegador (getDisplayMedia), com as opções que fazem
@@ -13,7 +15,6 @@ export type AudioPlan = 'ponte' | 'browser' | 'system' | 'none';
 
 export type Resolution = '720p' | '1080p' | '1440p' | 'native';
 export type Quality = 'leve' | 'equilibrada' | 'alta' | 'maxima';
-export type ContentKind = 'motion' | 'detail';
 
 export interface CaptureSettings {
   resolution: Resolution;
@@ -142,10 +143,30 @@ export async function captureDisplay(
     }
   }
 
-  video.contentHint = settings.content === 'motion' ? 'motion' : 'detail';
+  video.contentHint = contentHint(settings.content);
 
   return { stream, video, browserAudio, surface: real, browserAudioRoute: route, label: video.label };
 }
+
+/** Dica para o codificador: filme e jogo são imagem natural; texto é tela. */
+export function contentHint(c: ContentKind): 'motion' | 'detail' {
+  return c === 'detail' ? 'detail' : 'motion';
+}
+
+export const CONTENT_LABEL: Record<ContentKind, string> = {
+  motion: 'Jogo',
+  film: 'Filme ou série',
+  detail: 'Texto e apps',
+};
+
+/** Filme pede mais banda que o padrão: no mínimo a qualidade Alta. */
+export function withContent(s: CaptureSettings, content: ContentKind): CaptureSettings {
+  const low = s.quality === 'leve' || s.quality === 'equilibrada';
+  return { ...s, content, quality: content === 'film' && low ? 'alta' : s.quality };
+}
+
+/** Buffer de quem assiste um filme: um pouco de atraso em troca de não travar. */
+export const FILM_BUFFER_MS = 500;
 
 /** Ajusta resolução/FPS ao vivo, sem novo seletor. */
 export async function applyVideoSettings(video: MediaStreamTrack, s: CaptureSettings) {
@@ -160,7 +181,7 @@ export async function applyVideoSettings(video: MediaStreamTrack, s: CaptureSett
   } catch {
     /* alguns tamanhos não se aplicam a todas as superfícies */
   }
-  video.contentHint = s.content === 'motion' ? 'motion' : 'detail';
+  video.contentHint = contentHint(s.content);
 }
 
 export const SURFACE_LABEL: Record<SourceKind, string> = {

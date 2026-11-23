@@ -121,7 +121,10 @@ export function HowItWorksPage() {
         <ul>
           <li>Conexão direta entre o anfitrião e cada espectador (WebRTC), sem servidor de vídeo no meio.</li>
           <li>O player pede ao navegador o menor buffer possível; a sala mostra o atraso de rede real (RTT), perda de pacotes e FPS recebidos.</li>
-          <li>Jogos usam o modo “movimento” (prioriza fluidez); textos e apps, o modo “nitidez”.</li>
+          <li>
+            Você diz o que vai passar: <strong>jogo</strong> prioriza fluidez e o menor atraso; <strong>filme ou série</strong> usa mais banda, imagem
+            mais nítida e meio segundo de folga em quem assiste, para não travar; <strong>texto e apps</strong> priorizam a nitidez das letras.
+          </li>
           <li>Áudio em Opus estéreo a 192 kbps, sem cancelamento de eco nem supressão de ruído, que estragariam música e efeitos.</li>
         </ul>
         <h3>Limites honestos</h3>
@@ -129,6 +132,7 @@ export function HowItWorksPage() {
           <li>Cada espectador recebe uma cópia direta do anfitrião: o upload da sua internet limita quantas pessoas assistem bem. O padrão é até 12 por sala.</li>
           <li>Jogos em tela cheia exclusiva podem aparecer pretos na captura de janela. Use “tela cheia sem bordas” ou capture o monitor.</li>
           <li>Alguns jogos com anti-cheat e programas em modo de áudio exclusivo não deixam o som ser capturado por processo.</li>
+          <li>Netflix, Prime Video, Disney+ e outros serviços com proteção contra cópia costumam aparecer pretos em qualquer compartilhamento de tela.</li>
           <li>Em redes muito restritas (algumas empresas e operadoras móveis) a conexão direta falha; é preciso configurar um servidor TURN no servidor do Alexandrus.</li>
         </ul>
       </section>

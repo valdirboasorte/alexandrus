@@ -53,6 +53,11 @@ function audioText(st: LiveStream) {
   return st.info.audio === 'none' || !st.info.audioEnabled ? 'sem som' : ROUTE_LABEL[st.info.audio].toLowerCase();
 }
 
+/** "· filme" no chip: explica o meio segundo a mais de atraso. */
+function filmText(st: LiveStream) {
+  return st.info.content === 'film' ? ' · filme' : '';
+}
+
 type Panel = 'quality' | 'people' | 'stats' | null;
 type Layout = 'focus' | 'grid';
 
@@ -309,7 +314,7 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
             {grid
               ? `${streams.length} telas ao vivo`
               : focused
-                ? `${focusIsMe ? 'Você' : focused.name} · ${SURFACE_LABEL[focused.info.source ?? 'monitor']} · ${focusIsMe && live?.audioProcess ? `${ROUTE_LABEL[live.route]}: ${live.audioProcess}` : audioText(focused)}`
+                ? `${focusIsMe ? 'Você' : focused.name} · ${SURFACE_LABEL[focused.info.source ?? 'monitor']} · ${focusIsMe && live?.audioProcess ? `${ROUTE_LABEL[live.route]}: ${live.audioProcess}` : audioText(focused)}${filmText(focused)}`
                 : room.hostName}
           </span>
         </span>

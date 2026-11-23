@@ -1,6 +1,9 @@
+import type { ContentKind } from '@protocol';
+
 /*
- * Ajustes de WebRTC para transmitir jogo: áudio estéreo de alta qualidade,
- * codec de vídeo com codificação por hardware primeiro e buffer mínimo.
+ * Ajustes de WebRTC: áudio estéreo de alta qualidade, codec de vídeo com
+ * codificação por hardware primeiro, e buffer de quem assiste conforme o que
+ * passa (mínimo para jogo, maior para filme).
  */
 
 /** Opus estéreo, 192 kbps, FEC. Vale para oferta e resposta. */
@@ -53,7 +56,7 @@ export function preferVideoCodecs(transceiver: RTCRtpTransceiver) {
  */
 export async function applySenderLimits(
   sender: RTCRtpSender,
-  opts: { maxBitrate: number; maxFramerate: number; content: 'motion' | 'detail'; scale?: number },
+  opts: { maxBitrate: number; maxFramerate: number; content: ContentKind; scale?: number },
 ): Promise<boolean> {
   const params = sender.getParameters();
   if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
@@ -64,8 +67,9 @@ export async function applySenderLimits(
     (enc as RTCRtpEncodingParameters & { priority?: string; networkPriority?: string }).priority = 'high';
     (enc as RTCRtpEncodingParameters & { networkPriority?: string }).networkPriority = 'high';
   }
+  // jogo: segura o FPS; texto: segura a nitidez; filme: equilibra os dois
   (params as RTCRtpSendParameters & { degradationPreference?: string }).degradationPreference =
-    opts.content === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
+    opts.content === 'motion' ? 'maintain-framerate' : opts.content === 'detail' ? 'maintain-resolution' : 'balanced';
   try {
     await sender.setParameters(params);
     return true;
@@ -89,12 +93,15 @@ export async function applyAudioSenderLimits(sender: RTCRtpSender) {
   }
 }
 
-/** Pede ao receptor o menor buffer de reprodução possível (baixa latência). */
-export function lowLatencyReceiver(receiver: RTCRtpReceiver) {
+/**
+ * Buffer de reprodução pedido ao receptor, em ms: 0 = o menor possível (jogo,
+ * baixa latência); maior = absorve os solavancos da rede (filme).
+ */
+export function setReceiverBuffer(receiver: RTCRtpReceiver, ms: number) {
   const r = receiver as unknown as { jitterBufferTarget?: number | null; playoutDelayHint?: number };
   try {
-    if ('jitterBufferTarget' in receiver) r.jitterBufferTarget = 0;
-    else r.playoutDelayHint = 0;
+    if ('jitterBufferTarget' in receiver) r.jitterBufferTarget = ms;
+    else r.playoutDelayHint = ms / 1000;
   } catch {
     /* sem suporte */
   }

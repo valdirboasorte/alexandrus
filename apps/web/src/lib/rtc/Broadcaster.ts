@@ -1,4 +1,4 @@
-import type { SignalData } from '@protocol';
+import type { ContentKind, SignalData } from '@protocol';
 import type { SignalingClient } from '../signaling.ts';
 import { decide, INITIAL_ADAPT, ladder, type AdaptState, type Step } from './adaptive.ts';
 import { createSenderStatsReader, readNetSample, type SenderStats } from './stats.ts';
@@ -25,7 +25,7 @@ import { applyAudioSenderLimits, applySenderLimits, preferVideoCodecs, tuneOpus 
 export interface SenderLimits {
   maxBitrate: number;
   maxFramerate: number;
-  content: 'motion' | 'detail';
+  content: ContentKind;
   /** Ajuste automático pela conexão de cada espectador. */
   auto: boolean;
 }
@@ -48,9 +48,16 @@ interface Peer {
   pendingIce: RTCIceCandidateInit[];
   readStats: () => Promise<SenderStats>;
   adapt: AdaptState;
+  /** Quando conectou (ms); 0 = ainda não. */
+  connectedAt: number;
 }
 
 const TICK_MS = 2000;
+/**
+ * Nos primeiros segundos a estimativa de banda ainda está subindo do zero:
+ * aí estimativa baixa não é rede ruim (perda e atraso continuam valendo).
+ */
+const WARMUP_MS = 10_000;
 
 export class Broadcaster {
   private peers = new Map<string, Peer>();
@@ -127,6 +134,7 @@ export class Broadcaster {
         if (p.pc.connectionState !== 'connected') continue;
         const sample = await readNetSample(p.pc).catch(() => null);
         if (!sample) continue;
+        if (Date.now() - p.connectedAt < WARMUP_MS) sample.limited = false;
         const next = decide(p.adapt, sample, steps, Date.now());
         const moved = next.level !== p.adapt.level;
         p.adapt = next;
@@ -151,7 +159,7 @@ export class Broadcaster {
     const audio = pc.addTransceiver(this.audioTrack ?? 'audio', { direction: 'sendonly', streams: [this.msid] });
     preferVideoCodecs(video);
 
-    const peer: Peer = { id, name, pc, video, audio, pendingIce: [], readStats: createSenderStatsReader(pc), adapt: { ...INITIAL_ADAPT } };
+    const peer: Peer = { id, name, pc, video, audio, pendingIce: [], readStats: createSenderStatsReader(pc), adapt: { ...INITIAL_ADAPT }, connectedAt: 0 };
     this.peers.set(id, peer);
 
     pc.onicecandidate = (ev) => {
@@ -160,6 +168,7 @@ export class Broadcaster {
     pc.onconnectionstatechange = () => {
       this.onChange();
       if (pc.connectionState === 'connected') {
+        if (!peer.connectedAt) peer.connectedAt = Date.now();
         void this.applyPeer(peer);
         void applyAudioSenderLimits(audio.sender);
       }

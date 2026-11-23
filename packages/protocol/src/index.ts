@@ -62,6 +62,14 @@ export type SourceKind = 'monitor' | 'window' | 'browser';
  */
 export type AudioRoute = 'none' | 'tab' | 'window' | 'system' | 'process' | 'process-exclude';
 
+/**
+ * O que está passando, segundo quem compartilha:
+ * - motion: jogo (fluidez, atraso mínimo);
+ * - detail: texto e apps (nitidez);
+ * - film: filme/série (nitidez e um buffer maior em quem assiste, para não travar).
+ */
+export type ContentKind = 'motion' | 'detail' | 'film';
+
 export interface StreamInfo {
   live: boolean;
   source: SourceKind | null;
@@ -74,6 +82,8 @@ export interface StreamInfo {
   height?: number;
   fps?: number;
   startedAt?: number | null;
+  /** Ausente = motion (páginas antigas). */
+  content?: ContentKind;
 }
 
 export const OFFLINE_STREAM: StreamInfo = {

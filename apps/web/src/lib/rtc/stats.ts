@@ -149,8 +149,12 @@ export async function readNetSample(pc: RTCPeerConnection): Promise<Sample> {
   let loss: number | null = null;
   let rtt: number | null = null;
   let available: number | null = null;
+  let limited: boolean | null = null;
   let pairId: string | undefined;
   report.forEach((s) => {
+    if (s.type === 'outbound-rtp' && s.kind === 'video' && typeof s.qualityLimitationReason === 'string') {
+      limited = s.qualityLimitationReason === 'bandwidth';
+    }
     if (s.type === 'remote-inbound-rtp' && s.kind === 'video') {
       if (typeof s.fractionLost === 'number') loss = s.fractionLost;
       if (typeof s.roundTripTime === 'number') rtt = s.roundTripTime;
@@ -162,7 +166,7 @@ export async function readNetSample(pc: RTCPeerConnection): Promise<Sample> {
     if (typeof pair.availableOutgoingBitrate === 'number') available = pair.availableOutgoingBitrate;
     if (rtt === null && typeof pair.currentRoundTripTime === 'number') rtt = pair.currentRoundTripTime;
   }
-  return { loss, rtt, available };
+  return { loss, rtt, available, limited };
 }
 
 export const LIMIT_REASON: Record<string, string> = {

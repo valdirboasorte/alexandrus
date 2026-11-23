@@ -9,6 +9,8 @@
  * fica estável. Lógica pura, sem DOM: testada em apps/web/test/adaptive.test.ts.
  */
 
+import type { ContentKind } from '@protocol';
+
 export interface Step {
   /** Teto de bitrate de vídeo (bps). */
   bps: number;
@@ -25,6 +27,13 @@ export interface Sample {
   rtt: number | null;
   /** Estimativa de banda de saída do WebRTC (bps). */
   available: number | null;
+  /**
+   * O codificador está sendo segurado pela rede (qualityLimitationReason ===
+   * 'bandwidth'). false = ele simplesmente não precisa de mais agora (cena
+   * parada, conteúdo simples) ou a conexão acabou de começar; nesses casos uma
+   * estimativa baixa NÃO é rede ruim. null/ausente = navegador não informa.
+   */
+  limited?: boolean | null;
 }
 
 export interface AdaptState {
@@ -41,16 +50,19 @@ const MIN_BPS = 400_000;
 
 /**
  * Degraus a partir do teto escolhido. Em jogos (fluidez) cai a resolução e o
- * FPS fica; em texto (nitidez) a resolução fica e cai o FPS.
+ * FPS fica; em texto (nitidez) a resolução fica e cai o FPS; em filme cai
+ * primeiro a banda, depois um pouco de cada (nunca abaixo de 24 FPS).
  */
-export function ladder(ceilingBps: number, fps: number, content: 'motion' | 'detail'): Step[] {
+export function ladder(ceilingBps: number, fps: number, content: ContentKind): Step[] {
   const fracs = [1, 0.6, 0.4, 0.25, 0.15];
   const motionScale = [1, 1, 1.5, 2, 2.5];
   const detailFps = [fps, fps, Math.min(fps, 30), Math.min(fps, 15), Math.min(fps, 10)];
+  const filmScale = [1, 1, 1.25, 1.5, 2];
+  const filmFps = [fps, fps, Math.min(fps, 30), Math.min(fps, 30), Math.min(fps, 24)];
   return fracs.map((f, i) => ({
     bps: Math.max(MIN_BPS, Math.round(ceilingBps * f)),
-    scale: content === 'motion' ? motionScale[i] : 1,
-    fps: content === 'motion' ? fps : detailFps[i],
+    scale: content === 'motion' ? motionScale[i] : content === 'film' ? filmScale[i] : 1,
+    fps: content === 'motion' ? fps : content === 'film' ? filmFps[i] : detailFps[i],
   }));
 }
 
@@ -75,11 +87,12 @@ export function decide(state: AdaptState, s: Sample, steps: Step[], now: number)
   const current = steps[state.level];
 
   const severe = loss >= LOSS_SEVERE || rtt >= RTT_SEVERE;
-  // A estimativa do WebRTC muito abaixo do degrau atual também conta como sinal ruim.
-  const starved = s.available !== null && s.available < current.bps * 0.6;
+  // A estimativa do WebRTC muito abaixo do degrau atual conta como sinal ruim,
+  // mas só se a rede estiver mesmo segurando o vídeo (ou se o navegador não disser).
+  const starved = s.limited !== false && s.available !== null && s.available < current.bps * 0.6;
   const bad = severe || loss >= LOSS_BAD || rtt >= RTT_BAD || starved;
   const nextUp = steps[Math.max(0, state.level - 1)];
-  const good = loss < LOSS_GOOD && rtt < RTT_GOOD && (s.available === null || s.available >= nextUp.bps * 0.9);
+  const good = loss < LOSS_GOOD && rtt < RTT_GOOD && (s.limited === false || s.available === null || s.available >= nextUp.bps * 0.9);
 
   if (severe && state.level < last) {
     return { level: Math.min(last, state.level + 2), bad: 0, good: 0, changedAt: now };

@@ -1,7 +1,7 @@
 import type { SignalData } from '@protocol';
 import type { SignalingClient } from '../signaling.ts';
 import { createViewerStatsReader, type ViewerStats } from './stats.ts';
-import { lowLatencyReceiver, tuneOpus } from './tuning.ts';
+import { setReceiverBuffer, tuneOpus } from './tuning.ts';
 
 /*
  * Quem assiste a UMA tela da sala. Pede a oferta a quem compartilha
@@ -26,6 +26,8 @@ export class StreamReceiver {
   private readStats: (() => Promise<ViewerStats>) | null = null;
   private retryTimer = 0;
   private closed = false;
+  /** Buffer de reprodução (ms): 0 para jogo, maior para filme. */
+  private bufferMs = 0;
   stream: MediaStream | null = null;
   state: ReceiverState = 'waiting';
 
@@ -39,6 +41,13 @@ export class StreamReceiver {
 
   setIceServers(servers: RTCIceServer[]) {
     this.iceServers = servers;
+  }
+
+  /** Muda o buffer na hora, também nas faixas que já estão tocando. */
+  setBuffer(ms: number) {
+    if (ms === this.bufferMs) return;
+    this.bufferMs = ms;
+    for (const r of this.pc?.getReceivers() ?? []) setReceiverBuffer(r, ms);
   }
 
   /** Começa a assistir. */
@@ -68,7 +77,7 @@ export class StreamReceiver {
     const to = this.presenterId;
 
     pc.ontrack = (ev) => {
-      lowLatencyReceiver(ev.receiver);
+      setReceiverBuffer(ev.receiver, this.bufferMs);
       for (const t of stream.getTracks()) if (t.kind === ev.track.kind) stream.removeTrack(t);
       stream.addTrack(ev.track);
       this.onStream(stream);

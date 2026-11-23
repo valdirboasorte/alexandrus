@@ -18,6 +18,31 @@ test('degraus: jogo baixa resolução, texto baixa FPS, nunca abaixo de 400 kbps
   assert.ok(detail.every((s) => s.scale === 1 && s.bps >= 400_000));
 });
 
+test('degraus de filme: cai a banda primeiro, resolução pouco, nunca abaixo de 24 FPS', () => {
+  const film = ladder(12_000_000, 60, 'film');
+  assert.deepEqual(film.map((s) => s.scale), [1, 1, 1.25, 1.5, 2]);
+  assert.deepEqual(film.map((s) => s.fps), [60, 60, 30, 30, 24]);
+  assert.equal(film[1].bps, 7_200_000);
+});
+
+test('estimativa baixa sem a rede segurar o vídeo (cena parada, começo) não derruba a qualidade', () => {
+  const quiet: Sample = { loss: 0, rtt: 0.03, available: 900_000, limited: false };
+  assert.equal(run(Array(10).fill(quiet)).level, 0);
+});
+
+test('com a rede de verdade segurando o vídeo, estimativa baixa desce', () => {
+  const held: Sample = { loss: 0, rtt: 0.05, available: 1_500_000, limited: true };
+  assert.equal(run([held, held]).level, 1);
+});
+
+test('sobe de volta quando a rede para de segurar, mesmo com estimativa baixa', () => {
+  const down = run([{ loss: 0.348, rtt: 0.689, available: 2_000_000 }]);
+  assert.equal(down.level, 2);
+  const calm: Sample = { loss: 0, rtt: 0.03, available: 1_000_000, limited: false };
+  const back = run(Array(20).fill(calm), down, 20_000);
+  assert.equal(back.level, 0);
+});
+
 test('rede boa não muda nada', () => {
   assert.equal(run(Array(20).fill(ok)).level, 0);
 });

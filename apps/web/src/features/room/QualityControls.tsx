@@ -1,7 +1,31 @@
 import { AeroToggle, Segmented } from '../../components/ui/controls.tsx';
-import { QUALITY_BITRATE, RESOLUTIONS, type CaptureSettings, type Quality, type Resolution } from '../../lib/capture.ts';
+import { QUALITY_BITRATE, RESOLUTIONS, withContent, type CaptureSettings, type ContentKind, type Quality, type Resolution } from '../../lib/capture.ts';
+import type { SegmentOption } from '../../components/ui/controls.tsx';
 
-export function QualityControls({ value, onChange, tone = 'light' }: { value: CaptureSettings; onChange: (s: CaptureSettings) => void; tone?: 'light' | 'dark' }) {
+export const CONTENT_OPTIONS: SegmentOption<ContentKind>[] = [
+  { value: 'motion', label: 'Jogo', icon: 'gamepad' },
+  { value: 'film', label: 'Filme ou série', icon: 'film' },
+  { value: 'detail', label: 'Texto e apps', icon: 'window' },
+];
+
+export const CONTENT_HINT: Record<ContentKind, string> = {
+  motion: 'Prioriza a fluidez e o menor atraso possível.',
+  film: 'Imagem mais nítida e mais banda (no mínimo Alta). Quem assiste fica meio segundo atrás para o vídeo não travar.',
+  detail: 'Prioriza a nitidez de letras e detalhes; o FPS cai antes.',
+};
+
+export function QualityControls({
+  value,
+  onChange,
+  tone = 'light',
+  hideContent = false,
+}: {
+  value: CaptureSettings;
+  onChange: (s: CaptureSettings) => void;
+  tone?: 'light' | 'dark';
+  /** O painel de fonte já mostra "O que vai passar" fora daqui. */
+  hideContent?: boolean;
+}) {
   const set = <K extends keyof CaptureSettings>(k: K, v: CaptureSettings[K]) => onChange({ ...value, [k]: v });
   return (
     <div className={`quality quality--${tone}`}>
@@ -50,18 +74,13 @@ export function QualityControls({ value, onChange, tone = 'light' }: { value: Ca
         </label>
         <AeroToggle id="q-auto" checked={value.auto} onChange={(v) => set('auto', v)} label="Ajuste automático pela conexão" />
       </div>
-      <div className="quality__row">
-        <span className="quality__label">Prioridade</span>
-        <Segmented
-          label="Prioridade de imagem"
-          value={value.content}
-          onChange={(v) => set('content', v)}
-          options={[
-            { value: 'motion', label: 'Fluidez (jogos)', icon: 'gamepad' },
-            { value: 'detail', label: 'Nitidez (texto)', icon: 'window' },
-          ]}
-        />
-      </div>
+      {!hideContent && (
+        <div className="quality__row">
+          <span className="quality__label">O que passa</span>
+          <Segmented label="O que vai passar" value={value.content} onChange={(v) => onChange(withContent(value, v))} options={CONTENT_OPTIONS} />
+          <span className="quality__hint">{CONTENT_HINT[value.content]}</span>
+        </div>
+      )}
     </div>
   );
 }

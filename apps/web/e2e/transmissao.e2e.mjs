@@ -9,6 +9,7 @@
  *   node apps/web/e2e/transmissao.e2e.mjs                 (som da aba)
  *   node apps/web/e2e/transmissao.e2e.mjs --ponte --pid N (som de um app pela Ponte)
  *   node apps/web/e2e/transmissao.e2e.mjs --varias        (duas pessoas compartilhando ao mesmo tempo)
+ *   node apps/web/e2e/transmissao.e2e.mjs --filme         (modo filme: banda maior, buffer em quem assiste)
  *
  * Requer o servidor (8790) e o Vite (5173) rodando.
  */
@@ -23,6 +24,8 @@ const usePonte = args.includes('--ponte');
 const useWindow = args.includes('--janela');
 // --varias: um espectador também compartilha; um terceiro vê as duas telas (abas e lado a lado)
 const useMany = args.includes('--varias');
+// --filme: "Filme ou série" antes de começar
+const useFilm = args.includes('--filme');
 const appName = args.includes('--app') ? args[args.indexOf('--app') + 1] : 'powershell.exe';
 const SOURCE_TITLE = 'Fonte de teste Alexandrus';
 // a aba que será compartilhada: imagem animada + tom de 440 Hz
@@ -139,6 +142,7 @@ try {
   } else {
     await host.getByRole('radio', { name: /Aba do navegador/ }).click();
   }
+  if (useFilm) await host.getByRole('radio', { name: 'Filme ou série' }).click();
   await host.getByRole('button', { name: 'Iniciar compartilhamento' }).click();
   await host.waitForSelector('.stage', { timeout: 15000 });
   log('anfitrião ao vivo:', (await host.locator('.stage-chip__text').first().innerText()).replace(/\s+/g, ' '));
@@ -237,6 +241,32 @@ try {
     if (!aviso.includes('só com imagem')) fail('a sala não avisou que a janela foi sem som');
   } else if (!(stats.audioEnergy > 0)) fail('áudio da fonte não chegou (energia zero)');
   if (!process.exitCode) log('OK: vídeo e áudio da fonte chegaram ao espectador.');
+
+  if (useFilm) {
+    await viewer.waitForTimeout(4000);
+    const enviado = await host.evaluate(() =>
+      window.__pcs
+        .filter((pc) => pc.connectionState === 'connected')
+        .map((pc) => {
+          const p = pc.getSenders().find((s) => s.track?.kind === 'video')?.getParameters();
+          return { pref: p?.degradationPreference, maxBitrate: p?.encodings?.[0]?.maxBitrate, hint: pc.getSenders().find((s) => s.track?.kind === 'video')?.track?.contentHint };
+        }),
+    );
+    const recebido = await viewer.evaluate(async () => {
+      const pc = window.__pcs.find((p) => p.connectionState === 'connected');
+      let jb = null;
+      (await pc.getStats()).forEach((s) => {
+        if (s.type === 'inbound-rtp' && s.kind === 'video' && s.jitterBufferEmittedCount) jb = Math.round((s.jitterBufferDelay / s.jitterBufferEmittedCount) * 1000);
+      });
+      return { alvo: pc.getReceivers().map((r) => r.jitterBufferTarget), bufferMedioMs: jb, chip: document.querySelector('.stage-chip__text')?.innerText.replace(/\s+/g, ' ') };
+    });
+    log('modo filme, envio:', JSON.stringify(enviado), 'recepção:', JSON.stringify(recebido));
+    if (!enviado.length || enviado.some((e) => e.pref !== 'balanced' || e.maxBitrate !== 12_000_000)) fail('o envio não está no modo filme (balanced, 12 Mbps)');
+    if (!recebido.alvo.every((t) => t === 500)) fail('quem assiste não pediu o buffer de filme (500 ms)');
+    if (!(recebido.bufferMedioMs > 150)) fail('o buffer médio de quem assiste não cresceu');
+    if (!recebido.chip.includes('filme')) fail('o chip não diz que é filme');
+    if (!process.exitCode) log('OK: modo filme no envio e na recepção.');
+  }
 
   if (useMany) {
     // quadros decodificados por conexão de chegada (uma por tela recebida)

@@ -7,6 +7,9 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/aero.css';
 import { router } from './router.tsx';
+import { installHotTrack } from './lib/hotTrack.ts';
+
+installHotTrack();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

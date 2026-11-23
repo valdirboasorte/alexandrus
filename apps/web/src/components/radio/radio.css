@@ -2,6 +2,8 @@
 
 /* player fechado: uma pílula de vidro no canto, com o disco e os botões (a música pode estar tocando) */
 .radio-launch {
+  /* fica parada nas transições de página (não pisca com o resto) */
+  view-transition-name: radio-pill;
   position: fixed;
   left: max(16px, env(safe-area-inset-left));
   bottom: max(16px, env(safe-area-inset-bottom));
@@ -91,6 +93,7 @@
 
 /* cartão aberto */
 .radio {
+  view-transition-name: radio-card;
   position: fixed;
   left: max(16px, env(safe-area-inset-left));
   bottom: max(16px, env(safe-area-inset-bottom));

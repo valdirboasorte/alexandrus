@@ -7,7 +7,7 @@ import './layout.css';
 
 export function SiteFooter() {
   return (
-    <footer className="site-footer">
+    <footer className="site-footer" data-loops>
       <Bubbles count={9} seed={23} />
       <FishSchool />
       <Seaweed className="seaweed--left" />

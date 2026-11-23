@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { AeroButton } from '../../components/ui/AeroButton.tsx';
 import { Icon, type IconName } from '../../components/ui/Icon.tsx';
 
 interface StageProps {
@@ -133,9 +134,7 @@ export function DockPanel({ title, onClose, children }: { title: string; onClose
     <div className="dock-panel glass glass--deep" role="dialog" aria-label={title}>
       <div className="dock-panel__head">
         <h2>{title}</h2>
-        <button type="button" className="dock-btn dock-btn--small" onClick={onClose} aria-label="Fechar">
-          <Icon name="x" />
-        </button>
+        <AeroButton size="sm" variant="red" className="aero-close" iconOnly icon="x" aria-label="Fechar" onClick={onClose} />
       </div>
       <div className="dock-panel__body">{children}</div>
     </div>

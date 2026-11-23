@@ -71,8 +71,79 @@ p {
   outline-offset: 3px;
 }
 
+/* seleção do Windows 7: azul cheio, texto branco */
 ::selection {
-  background: rgba(24, 198, 242, 0.35);
+  background: #3399ff;
+  color: #fff;
+  text-shadow: none;
+}
+
+/*
+ * Barras de rolagem do Windows 7: trilho claro, alça de vidro azulado com
+ * três riscos no meio. Chrome/Edge desenham pelos pseudo-elementos; o
+ * Firefox fica com as cores (scrollbar-color).
+ */
+::-webkit-scrollbar {
+  width: 15px;
+  height: 15px;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(90deg, #e3ecf6, #f6f9fc 40%, #eef3f9);
+  box-shadow: inset 1px 0 0 rgba(120, 150, 190, 0.35);
+}
+
+::-webkit-scrollbar-track:horizontal {
+  background: linear-gradient(180deg, #e3ecf6, #f6f9fc 40%, #eef3f9);
+  box-shadow: inset 0 1px 0 rgba(120, 150, 190, 0.35);
+}
+
+::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
+  background-color: #cfe0f3;
+  background-image:
+    linear-gradient(180deg, transparent calc(50% - 4px), #8fa9c8 calc(50% - 4px) calc(50% - 3px), transparent calc(50% - 3px) calc(50% - 1px), #8fa9c8 calc(50% - 1px) 50%, transparent 50% calc(50% + 2px), #8fa9c8 calc(50% + 2px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(90deg, #f7fbff 0%, #e2eefb 45%, #cddff4 50%, #d9e8f8 100%);
+  background-size: 6px 100%, 100% 100%;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 1px rgba(90, 125, 170, 0.6);
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  min-width: 40px;
+  background-image:
+    linear-gradient(90deg, transparent calc(50% - 4px), #8fa9c8 calc(50% - 4px) calc(50% - 3px), transparent calc(50% - 3px) calc(50% - 1px), #8fa9c8 calc(50% - 1px) 50%, transparent 50% calc(50% + 2px), #8fa9c8 calc(50% + 2px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(180deg, #f7fbff 0%, #e2eefb 45%, #cddff4 50%, #d9e8f8 100%);
+  background-size: 100% 6px, 100% 100%;
+}
+
+/* hover: a alça "acende" em azul, como no Windows 7 */
+::-webkit-scrollbar-thumb:hover {
+  background-color: #b9dcfb;
+  background-image:
+    linear-gradient(180deg, transparent calc(50% - 4px), #3f7fbf calc(50% - 4px) calc(50% - 3px), transparent calc(50% - 3px) calc(50% - 1px), #3f7fbf calc(50% - 1px) 50%, transparent 50% calc(50% + 2px), #3f7fbf calc(50% + 2px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(90deg, #f2faff 0%, #cbe9ff 45%, #a9dbff 50%, #bde4ff 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 0 1px rgba(60, 127, 177, 0.75);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-image:
+    linear-gradient(180deg, transparent calc(50% - 4px), #2c6aa8 calc(50% - 4px) calc(50% - 3px), transparent calc(50% - 3px) calc(50% - 1px), #2c6aa8 calc(50% - 1px) 50%, transparent 50% calc(50% + 2px), #2c6aa8 calc(50% + 2px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(90deg, #d8efff 0%, #a7d8fb 45%, #7fc3f5 50%, #94cff8 100%);
+}
+
+::-webkit-scrollbar-corner {
+  background: #eef3f9;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-color: #b9d3ee #eef3f9;
+  }
 }
 
 .visually-hidden {
@@ -112,34 +183,52 @@ p {
   margin-inline: auto;
 }
 
-/* Transições entre páginas (View Transitions API, Chrome/Edge) */
+/*
+ * Transições entre páginas (View Transitions API, Chrome/Edge), no jeito das
+ * janelas do Windows 7: a de saída encolhe um pouco e some rápido; a nova abre
+ * do centro, crescendo e ganhando opacidade. A barra de navegação não se mexe
+ * (topnav) e o cenário só cruza (root). O conteúdo de cada página tem nome
+ * próprio (page-<rota>, classe "page"), então saída e entrada nunca se
+ * deformam uma na outra.
+ */
+.vt-page {
+  view-transition-class: page;
+}
+
+/* regiões fora da tela: loops parados (ver pauseLoopsOffscreen) */
+[data-loops][data-paused] *,
+[data-loops][data-paused] *::before,
+[data-loops][data-paused] *::after {
+  animation-play-state: paused !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 320ms;
-  animation-timing-function: var(--ease-out);
+  animation-duration: 240ms;
+  animation-timing-function: ease;
 }
 
-::view-transition-old(root) {
-  animation-name: page-out;
+::view-transition-old(*.page) {
+  animation: window-close 170ms cubic-bezier(0.4, 0, 1, 1) both;
+  transform-origin: 50% 35%;
 }
 
-::view-transition-new(root) {
-  animation-name: page-in;
+::view-transition-new(*.page) {
+  animation: window-open 360ms var(--ease-out-expo) 40ms both;
+  transform-origin: 50% 35%;
 }
 
-@keyframes page-out {
+@keyframes window-close {
   to {
     opacity: 0;
-    transform: translateY(-10px) scale(0.99);
-    filter: blur(3px);
+    transform: scale(0.965);
   }
 }
 
-@keyframes page-in {
+@keyframes window-open {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.99);
-    filter: blur(3px);
+    transform: translateY(10px) scale(0.94);
   }
 }
 
@@ -155,4 +244,25 @@ p {
 :root[data-motion='reduced']::view-transition-old(root),
 :root[data-motion='reduced']::view-transition-new(root) {
   animation: none;
+}
+
+/* reduzido: a janela só aparece e some, sem crescer */
+:root[data-motion='reduced']::view-transition-old(*.page) {
+  animation: fade-out 120ms ease both;
+}
+
+:root[data-motion='reduced']::view-transition-new(*.page) {
+  animation: fade-in 180ms ease both;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }

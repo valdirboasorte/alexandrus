@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveStream } from '@protocol';
 import { AeroButton } from '../../components/ui/AeroButton.tsx';
 import { Icon } from '../../components/ui/Icon.tsx';
-import { AeroToggle, Avatar, Note, Segmented } from '../../components/ui/controls.tsx';
+import { AeroProgress, AeroToggle, Avatar, Note, Segmented } from '../../components/ui/controls.tsx';
 import { useCopy, useToast } from '../../components/ui/toast.tsx';
 import { viewersLabel } from '../../components/room/RoomBits.tsx';
 import { useFullscreen, useIdle } from '../../hooks/useIdle.ts';
@@ -249,8 +249,8 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
     if (v?.media !== 'connected') {
       center = (
         <div className="waiting waiting--compact glass glass--deep">
-          <span className="status-orb status-orb--busy" aria-hidden />
           <p className="waiting__title">{v?.media === 'failed' ? 'A conexão direta falhou' : v?.media === 'unstable' ? 'Conexão instável…' : `Conectando à tela de ${focused.name}…`}</p>
+          {v?.media !== 'failed' && <AeroProgress label="Conectando" />}
           {v?.media === 'failed' && (
             <>
               <p className="waiting__text">Tentando de novo. Redes muito restritas precisam de um servidor TURN configurado.</p>
@@ -546,7 +546,7 @@ export function LiveRoom({ s, windows, onLeave }: { s: RoomSession; windows: boo
           <aside className="drawer glass glass--frost" aria-label={live ? 'Trocar fonte' : 'Compartilhar sua tela'}>
             <div className="drawer__head">
               <h2>{live ? 'Trocar fonte' : 'Compartilhar sua tela'}</h2>
-              <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar" onClick={() => setDrawer(false)} />
+              <AeroButton size="sm" variant="red" className="aero-close" iconOnly icon="x" aria-label="Fechar" onClick={() => setDrawer(false)} />
             </div>
             <p className="drawer__hint">
               {live

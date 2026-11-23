@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { pageWindowName, pauseLoopsOffscreen } from '../../lib/motion.ts';
 import { Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { Radio } from '../radio/Radio.tsx';
 import { SceneDefs } from '../scenery/parts.tsx';
@@ -23,6 +24,9 @@ export function RootLayout() {
     if (!pathname.startsWith('/sala/')) document.title = TITLES[pathname] ?? 'Alexandrus';
   }, [pathname]);
 
+  // a cada página nova, as regiões com loops passam a pausar fora da tela
+  useEffect(() => pauseLoopsOffscreen(), [pathname]);
+
   return (
     <ToastProvider>
       <SceneDefs />
@@ -38,11 +42,12 @@ export function RootLayout() {
 
 /** Páginas de site: céu e campo ao fundo, barra no topo, rodapé submerso. */
 export function SiteLayout() {
+  const { pathname } = useLocation();
   return (
     <>
       <MeadowScene />
       <TopNav />
-      <main id="conteudo" className="site-main">
+      <main id="conteudo" className="site-main vt-page" style={{ viewTransitionName: pageWindowName(pathname) }}>
         <Outlet />
       </main>
       <SiteFooter />

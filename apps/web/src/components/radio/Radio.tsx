@@ -358,7 +358,7 @@ export function Radio() {
             <strong>Rádio Aero</strong>
             <span>Frutiger Aero chill mix</span>
           </span>
-          <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar (a música continua)" onClick={() => setMode('pill')} />
+          <AeroButton size="sm" variant="red" className="aero-close" iconOnly icon="x" aria-label="Fechar (a música continua)" onClick={() => setMode('pill')} />
         </header>
 
         <div className="radio__art" data-playing={playing || undefined} aria-hidden>

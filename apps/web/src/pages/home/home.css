@@ -12,20 +12,6 @@
   inset: 0 0 auto 0;
 }
 
-/* entradas ao rolar (só quando o script liga) */
-.reveal-on [data-reveal] {
-  opacity: 0;
-  transform: translateY(24px);
-  transition:
-    opacity 640ms var(--ease-out) var(--reveal-delay, 0ms),
-    transform 760ms var(--ease-out) var(--reveal-delay, 0ms);
-}
-
-.reveal-on [data-reveal][data-revealed] {
-  opacity: 1;
-  transform: none;
-}
-
 /* ---------------- herói ---------------- */
 
 .hero {
@@ -117,6 +103,8 @@
   margin: 0;
   transform: perspective(1500px) rotateY(-17deg) rotateX(5deg) rotateZ(-2.5deg);
   transform-origin: 40% 50%;
+  /* o momento da página: a tela vira para você e acorda (ver "tela acordando" abaixo) */
+  animation: screen-arrive 1100ms var(--ease-out-expo) 120ms both;
 }
 
 .hero-screen__frame {
@@ -151,6 +139,7 @@
   object-fit: cover;
   object-position: 50% 62%;
   filter: saturate(1.35) contrast(1.06) brightness(1.04);
+  animation: screen-wake 900ms ease 520ms both;
 }
 
 /* brilho que atravessa o vidro */
@@ -259,6 +248,78 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2fd3ff, #0f7fe6);
+  transform-origin: 0 50%;
+  animation: level-dance 1.6s ease-in-out 1.8s infinite alternate both;
+}
+
+/*
+ * Tela acordando: chega girada e mais longe, a imagem acende como um monitor
+ * ligando, o AO VIVO aparece, e o "Áudio da fonte" liga sozinho — o que o
+ * produto faz, mostrado em um segundo e meio. Só "from": o fim é o próprio
+ * estilo de cada tamanho de tela.
+ */
+@keyframes screen-arrive {
+  from {
+    opacity: 0;
+    transform: perspective(1500px) rotateY(-38deg) rotateX(9deg) rotateZ(-5deg) translate3d(40px, 30px, 0) scale(0.9);
+  }
+}
+
+@keyframes screen-wake {
+  from {
+    filter: saturate(0.25) contrast(0.9) brightness(0.3);
+  }
+}
+
+.hero-screen__hud .live-pill {
+  animation: pill-pop 460ms var(--ease-out-expo) 1150ms both;
+}
+
+@keyframes pill-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+.hero-screen__chip {
+  animation: fade-in 400ms ease 1250ms both;
+}
+
+.hero-screen__chip .aero-toggle {
+  animation: toggle-on 1ms linear 1500ms both;
+}
+
+.hero-screen__chip .aero-toggle__knob {
+  animation: knob-on 380ms var(--ease-out-expo) 1500ms both;
+}
+
+@keyframes toggle-on {
+  from {
+    background: linear-gradient(180deg, #a9b9cc, #dbe6f2);
+    box-shadow: inset 0 2px 5px rgba(0, 40, 90, 0.35), inset 0 0 0 1px rgba(0, 40, 90, 0.25);
+  }
+}
+
+@keyframes knob-on {
+  from {
+    transform: translateX(0);
+  }
+}
+
+@keyframes level-dance {
+  0% {
+    transform: scaleX(0.55);
+  }
+  35% {
+    transform: scaleX(0.95);
+  }
+  60% {
+    transform: scaleX(0.7);
+  }
+  100% {
+    transform: scaleX(1.25);
+  }
 }
 
 .hero-screen__orbit {
@@ -622,33 +683,83 @@
 
 /* ---------------- três gestos ---------------- */
 
-.steps {
+/*
+ * A trilha dos três passos: uma janela fosca, um tubo de vidro com água
+ * ligando as três bolhas (a mesma água das correntes do som, acima).
+ */
+.setup {
+  --bubble: 64px;
+  --pad-top: clamp(30px, 3.4vw, 44px);
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(16px, 2.4vw, 32px);
+  gap: clamp(18px, 3vw, 44px);
   margin: clamp(40px, 5vw, 64px) 0 0;
-  padding: 0;
+  padding: var(--pad-top) clamp(22px, 3vw, 44px) clamp(28px, 3vw, 40px);
   list-style: none;
-  align-items: start;
-}
-
-.step {
-  padding: 26px 24px 28px;
   border-radius: var(--r-xl);
-  color: var(--ink-on-dark);
 }
 
-.step:nth-child(2) {
-  margin-top: clamp(0px, 3vw, 40px);
+/* o tubo, passando pelo centro das bolhas */
+.setup::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--pad-top) + var(--bubble) / 2 - 7px);
+  left: calc(100% / 6);
+  right: calc(100% / 6);
+  height: 14px;
+  border-radius: var(--r-pill);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.2) 45%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(90deg, #39b8f5, #58d27a 50%, #2fc6c9);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 80, 160, 0.35),
+    inset 0 -2px 3px rgba(0, 60, 130, 0.25),
+    0 2px 6px -2px rgba(0, 60, 140, 0.45);
 }
 
-.step:nth-child(3) {
-  margin-top: clamp(0px, 6vw, 80px);
+.setup__step {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  text-align: center;
+  color: var(--ink);
 }
 
-.step p {
-  color: var(--ink-on-dark-2);
-  font-size: 1.02rem;
+.setup__step .step__bubble {
+  width: var(--bubble);
+  height: var(--bubble);
+  margin-bottom: 16px;
+  outline: 6px solid rgba(255, 255, 255, 0.85);
+  transition: transform 260ms var(--ease-out-expo), box-shadow 260ms ease;
+}
+
+.setup__step p {
+  max-width: 34ch;
+  color: var(--ink-2);
+  font-size: 1rem;
+}
+
+.setup__title {
+  margin-bottom: 6px;
+  font-size: var(--step-2);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .setup__step:hover .step__bubble {
+    transform: translateY(-3px) scale(1.06);
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -8px 12px -4px rgba(190, 250, 255, 0.9),
+      0 0 0 6px rgba(255, 255, 255, 0.85),
+      0 0 26px 8px rgba(110, 215, 255, 0.55);
+  }
 }
 
 .step__bubble {
@@ -693,14 +804,6 @@
 
 .step__bubble--aqua {
   background: radial-gradient(circle at 50% 28%, #a8fff0, #0c9a9e 74%);
-}
-
-.step__title {
-  margin-bottom: 8px;
-  font-size: var(--step-2);
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  color: var(--white);
 }
 
 .how-short__more {
@@ -807,14 +910,36 @@
     display: none;
   }
 
-  .steps {
+  /* no celular a trilha fica em pé: tubo à esquerda, texto ao lado */
+  .setup {
     grid-template-columns: 1fr;
     max-width: 560px;
     margin-inline: auto;
+    gap: 26px;
   }
 
-  .step:nth-child(n) {
-    margin-top: 0;
+  .setup::after {
+    top: calc(var(--pad-top) + var(--bubble) / 2);
+    bottom: calc(var(--pad-top) + var(--bubble) / 2 + 40px);
+    left: calc(clamp(22px, 3vw, 44px) + var(--bubble) / 2 - 7px);
+    right: auto;
+    width: 14px;
+    height: auto;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.2) 45%, rgba(255, 255, 255, 0) 55%),
+      linear-gradient(180deg, #39b8f5, #58d27a 50%, #2fc6c9);
+  }
+
+  .setup__step {
+    grid-template-columns: var(--bubble) minmax(0, 1fr);
+    column-gap: 16px;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .setup__step .step__bubble {
+    grid-row: 1 / span 2;
+    margin-bottom: 0;
   }
 
   .check-section {
@@ -876,8 +1001,22 @@
 }
 
 /* Movimento reduzido: o brilho que passa pelo vidro fica; o ponto que corre
-   no anel e o fluxo das correntes param. */
+   no anel, o fluxo das correntes e o medidor param. A tela só aparece (sem
+   girar) e o AO VIVO e o interruptor já chegam prontos. */
 :root[data-motion='reduced'] .hero-screen__spark,
-:root[data-motion='reduced'] .routes__flow {
+:root[data-motion='reduced'] .routes__flow,
+:root[data-motion='reduced'] .hero-screen__meter span {
+  animation: none;
+}
+
+:root[data-motion='reduced'] .hero-screen {
+  animation: fade-in 400ms ease both;
+}
+
+:root[data-motion='reduced'] .hero-screen__picture,
+:root[data-motion='reduced'] .hero-screen__hud .live-pill,
+:root[data-motion='reduced'] .hero-screen__chip,
+:root[data-motion='reduced'] .hero-screen__chip .aero-toggle,
+:root[data-motion='reduced'] .hero-screen__chip .aero-toggle__knob {
   animation: none;
 }

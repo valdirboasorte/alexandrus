@@ -356,6 +356,13 @@ try {
     const avisoEspectador = await viewer.locator('.stage-alerts').innerText().catch(() => '');
     log('aviso no espectador:', avisoEspectador.replace(/\s+/g, ' '));
     if (!avisoEspectador.includes('desligou o compartilhamento')) fail('o espectador não foi avisado que a tela dele caiu');
+    await host.waitForTimeout(1500);
+    const previa = await host.evaluate(() => {
+      const v = document.querySelector('.stage__video');
+      return v && { tocando: !v.paused, pronto: v.readyState, largura: v.videoWidth, fonte: !!v.srcObject };
+    });
+    log('prévia do anfitrião depois:', JSON.stringify(previa));
+    if (!previa || !previa.fonte || previa.largura === 0) fail('a prévia do anfitrião ficou vazia');
     const temBotao = await viewer.getByRole('button', { name: 'Compartilhar tela' }).count();
     if (temBotao) fail('com o compartilhamento desligado, o espectador não devia ver "Compartilhar tela"');
     if (!process.exitCode) log('OK: duas telas ao mesmo tempo, troca por aba, lado a lado e bloqueio pelo anfitrião.');

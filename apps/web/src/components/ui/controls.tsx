@@ -147,3 +147,11 @@ export function Note({ tone = 'info', icon, children }: { tone?: 'info' | 'warn'
     </div>
   );
 }
+
+/**
+ * Barra de progresso do Windows 7 sem porcentagem (o bloco verde que corre):
+ * para esperas de duração desconhecida. O rótulo vai para leitores de tela.
+ */
+export function AeroProgress({ label }: { label: string }) {
+  return <span className="aero-progress" role="progressbar" aria-label={label} aria-busy="true" />;
+}

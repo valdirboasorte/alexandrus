@@ -1708,3 +1708,8 @@ button.stage-chip__btn:active {
     display: none;
   }
 }
+
+/* barra de progresso do Windows 7 nas esperas da sala */
+.room-message__body .aero-progress {
+  margin: 16px auto 0;
+}

@@ -24,7 +24,7 @@ export function RoomPage() {
   }, [code]);
 
   return (
-    <div className="room-page">
+    <div className="room-page vt-page" style={{ viewTransitionName: 'page-sala' }}>
       <DeepScene />
       {!code ? (
         <RoomMessage title="Código de sala inválido">

@@ -4,7 +4,13 @@ import { Icon } from './Icon.tsx';
 interface ToastItem {
   id: number;
   text: string;
+  /** Saindo: some com a animação antes de deixar o DOM. */
+  leaving?: boolean;
 }
+
+/** Quanto o aviso fica, e quanto dura a saída (igual ao CSS de .toast[data-leaving]). */
+const SHOW_MS = 2400;
+const LEAVE_MS = 220;
 
 const ToastContext = createContext<(text: string) => void>(() => {});
 
@@ -15,7 +21,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((text: string) => {
     const id = next.current++;
     setItems((list) => [...list.slice(-2), { id, text }]);
-    window.setTimeout(() => setItems((list) => list.filter((t) => t.id !== id)), 2200);
+    window.setTimeout(() => setItems((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t))), SHOW_MS);
+    window.setTimeout(() => setItems((list) => list.filter((t) => t.id !== id)), SHOW_MS + LEAVE_MS);
   }, []);
 
   const value = useMemo(() => push, [push]);
@@ -25,8 +32,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toast-region" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className="toast glass glass--frost">
-            <Icon name="check" strokeWidth={2.6} />
+          <div key={t.id} className="toast" data-leaving={t.leaving || undefined}>
+            <span className="toast__icon" aria-hidden>
+              <Icon name="check" strokeWidth={2.8} />
+            </span>
             {t.text}
           </div>
         ))}

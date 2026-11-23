@@ -64,3 +64,29 @@ export function watchSystemMotion(onChange: () => void) {
 export function isReducedMotion() {
   return document.documentElement.dataset.motion === 'reduced';
 }
+
+/**
+ * Nome da "janela" de cada página nas transições (ver base.css): uma por rota,
+ * para a saída e a entrada serem grupos separados e nunca se deformarem.
+ */
+export function pageWindowName(pathname: string): string {
+  const first = pathname.split('/')[1] || 'inicio';
+  return `page-${first.replace(/[^a-z0-9-]/gi, '') || 'x'}`;
+}
+
+/**
+ * Loops do cenário (bolhas, peixes, correntes) param quando a região sai da
+ * tela: [data-loops] ganha data-paused e o CSS pausa as animações lá dentro.
+ * Devolve a função que desliga a observação.
+ */
+export function pauseLoopsOffscreen(root: ParentNode = document): () => void {
+  if (typeof IntersectionObserver === 'undefined') return () => {};
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) e.target.toggleAttribute('data-paused', !e.isIntersecting);
+    },
+    { rootMargin: '120px 0px' },
+  );
+  root.querySelectorAll('[data-loops]').forEach((el) => io.observe(el));
+  return () => io.disconnect();
+}

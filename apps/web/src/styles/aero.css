@@ -166,13 +166,22 @@
   z-index: -1;
 }
 
-/* reflexo que atravessa o botão no hover */
+/*
+ * Luz que segue o mouse ("hot-track" da barra de tarefas do Windows 7): um
+ * brilho na cor do próprio botão, centrado onde o ponteiro está. --hx/--hy vêm
+ * de lib/hotTrack.ts; sem eles, o brilho fica no centro.
+ */
 .aero-btn__sheen {
   position: absolute;
   inset: 0;
+  /* abaixo do texto e do ícone, acima do plástico */
+  z-index: -1;
   border-radius: inherit;
-  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.55) 48%, rgba(255, 255, 255, 0) 62%);
-  transform: translateX(-110%);
+  background:
+    radial-gradient(circle at var(--hx, 50%) var(--hy, 50%), rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 34%),
+    radial-gradient(circle at var(--hx, 50%) var(--hy, 50%), var(--bounce), transparent 70%);
+  opacity: 0;
+  transition: opacity 220ms ease;
   pointer-events: none;
 }
 
@@ -197,14 +206,44 @@
   }
 
   .aero-btn:hover .aero-btn__sheen {
-    transform: translateX(110%);
-    transition: transform 720ms var(--ease-out);
+    opacity: 0.75;
+    transition-duration: 120ms;
   }
 }
 
 .aero-btn:active {
   transform: scale(0.97);
   filter: brightness(0.96);
+}
+
+/*
+ * Botão padrão: a única ação óbvia da tela "respira" devagar, como o botão
+ * padrão das caixas de diálogo do Vista/7. Para quando o mouse chega.
+ */
+.aero-btn[data-default]::after {
+  animation: default-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes default-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scaleX(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1.25);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .aero-btn[data-default]:hover::after {
+    animation: none;
+  }
+}
+
+:root[data-motion='reduced'] .aero-btn[data-default]::after {
+  animation: none;
 }
 
 .aero-btn:disabled,
@@ -275,6 +314,92 @@
 
 .aero-btn--block {
   width: 100%;
+}
+
+/* Fechar de janela do Windows 7: retângulo vermelho brilhante, não pílula */
+.aero-btn.aero-close {
+  --top: #f3a493;
+  --mid: #d9442f;
+  --bottom: #b3271c;
+  --rim: rgba(110, 20, 10, 0.6);
+  --glow: rgba(230, 60, 40, 0.45);
+  --bounce: rgba(255, 190, 160, 0.9);
+  width: 46px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(90, 10, 5, 0.6);
+  background: linear-gradient(180deg, var(--top) 0%, #e86a56 48%, var(--mid) 52%, var(--bottom) 100%);
+}
+
+.aero-btn.aero-close::before {
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  border-radius: 5px 5px 40% 40% / 5px 5px 6px 6px;
+}
+
+.aero-btn.aero-close .aero-btn__icon {
+  width: 17px;
+  height: 17px;
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(90, 10, 5, 0.6));
+}
+
+/*
+ * Barra de progresso do Windows 7, modo "marquee" (sem porcentagem): um bloco
+ * verde brilhante atravessando um trilho cinza claro. Para esperas de duração
+ * desconhecida (conectando, sintonizando). role="progressbar" no componente.
+ */
+.aero-progress {
+  position: relative;
+  display: block;
+  width: min(240px, 100%);
+  height: 15px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fbfbfb 0%, #e3e3e3 48%, #d6d6d6 52%, #ececec 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(70, 80, 95, 0.5),
+    inset 0 1px 2px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.aero-progress::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  width: 36%;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(180deg, #d9f8c7 0%, #8fe06a 40%, #3fb22a 50%, #4cc232 70%, #7ad95b 100%);
+  box-shadow: inset 0 0 0 1px rgba(25, 110, 15, 0.35);
+  animation: progress-marquee 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes progress-marquee {
+  from {
+    transform: translateX(-105%);
+  }
+  to {
+    transform: translateX(285%);
+  }
+}
+
+:root[data-motion='reduced'] .aero-progress::before {
+  width: 100%;
+  animation: progress-breathe 1.8s ease-in-out infinite;
+  transform: none;
+}
+
+@keyframes progress-breathe {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 /* Botão redondo de seta, dentro de campos */
@@ -594,16 +719,23 @@
   box-shadow: none;
 }
 
+/* ocupado: o anel azul que gira do Windows 7, não uma bolinha pulsando */
 .status-orb--busy {
-  --c: var(--cyan);
-  animation: orb-pulse 1.1s ease-in-out infinite;
+  background: conic-gradient(from 0deg, rgba(43, 159, 242, 0) 0deg, rgba(43, 159, 242, 0.25) 90deg, #2b9ff2 250deg, #c9efff 330deg, rgba(201, 239, 255, 0) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 38%, #000 42%);
+  mask: radial-gradient(circle, transparent 0 38%, #000 42%);
+  box-shadow: none;
+  animation: orb-spin 0.9s linear infinite;
 }
 
-@keyframes orb-pulse {
-  50% {
-    transform: scale(0.78);
-    opacity: 0.6;
+@keyframes orb-spin {
+  to {
+    transform: rotate(1turn);
   }
+}
+
+:root[data-motion='reduced'] .status-orb--busy {
+  animation-duration: 2.4s;
 }
 
 .avatar {
@@ -752,15 +884,18 @@
 /* Toast                                                                */
 /* ------------------------------------------------------------------ */
 
+/*
+ * Avisos como as notificações da bandeja do Windows 7: surgem no canto de
+ * baixo à direita, num balão claro com borda fina, e somem sozinhos.
+ */
 .toast-region {
   position: fixed;
-  left: 50%;
-  bottom: max(24px, env(safe-area-inset-bottom));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 90;
   display: grid;
   gap: 8px;
-  justify-items: center;
-  transform: translateX(-50%);
+  justify-items: end;
   pointer-events: none;
 }
 
@@ -768,22 +903,127 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-  border-radius: var(--r-pill);
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 16px 10px 10px;
+  border-radius: 9px;
   font-weight: 700;
+  font-size: 0.95rem;
   color: var(--ink);
-  transition: opacity 260ms ease, transform 260ms var(--ease-out);
+  background: linear-gradient(180deg, #ffffff 0%, #f3f9ff 50%, #e4f1fd 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgba(70, 110, 160, 0.55),
+    0 10px 24px -8px rgba(0, 30, 80, 0.55);
+  transition:
+    opacity 220ms ease,
+    transform 300ms var(--ease-out-expo);
 }
 
-.toast svg {
-  width: 20px;
-  height: 20px;
-  color: var(--grass);
+.toast__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(circle at 50% 30%, #bdf57c, #36a823 72%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(20, 90, 10, 0.45);
+}
+
+.toast__icon svg {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 1px 0 rgba(20, 80, 10, 0.5));
+}
+
+.toast[data-leaving] {
+  opacity: 0;
+  transform: translateY(6px);
+  transition-duration: 200ms;
 }
 
 @starting-style {
   .toast {
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
+    transform: translateY(14px) scale(0.98);
   }
+}
+
+:root[data-motion='reduced'] .toast {
+  transition: opacity 200ms ease;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hot-track nos itens que não são botões de plástico                   */
+/* (navegação, fontes, abas de tela, salas, dock). Ver lib/hotTrack.ts.  */
+/* ------------------------------------------------------------------ */
+
+.topnav__link,
+.source-tile,
+.stream-tab,
+.room-row,
+.dock-btn {
+  position: relative;
+  isolation: isolate;
+}
+
+.topnav__link::after,
+.source-tile::after,
+.stream-tab::after,
+.room-row::after,
+.dock-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--hx, 50%) var(--hy, 50%), var(--hot, rgba(255, 255, 255, 0.4)), transparent 62%);
+  opacity: 0;
+  transition: opacity 240ms ease;
+  pointer-events: none;
+}
+
+.topnav__link,
+.stream-tab,
+.dock-btn {
+  --hot: rgba(190, 240, 255, 0.42);
+}
+
+.source-tile,
+.room-row {
+  --hot: rgba(110, 205, 255, 0.4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .topnav__link:hover::after,
+  .source-tile:hover::after,
+  .stream-tab:hover::after,
+  .room-row:hover::after,
+  .dock-btn:hover::after {
+    opacity: 1;
+    transition-duration: 120ms;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Riscos do vidro Aero: as faixas diagonais de luz que o Windows 7     */
+/* desenhava na moldura das janelas. Só nas barras de "janela" (topo do  */
+/* site e da sala), não em todo vidro.                                   */
+/* ------------------------------------------------------------------ */
+
+.topnav__bar::after,
+.room-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 0 14%, rgba(255, 255, 255, 0.16) 15% 19%, transparent 20% 100%),
+    linear-gradient(112deg, transparent 0 23%, rgba(255, 255, 255, 0.1) 24% 25.5%, transparent 26.5% 100%),
+    linear-gradient(112deg, transparent 0 58%, rgba(255, 255, 255, 0.12) 59% 64%, transparent 65% 100%),
+    linear-gradient(112deg, transparent 0 69%, rgba(255, 255, 255, 0.08) 70% 71%, transparent 72% 100%);
+  mix-blend-mode: soft-light;
 }

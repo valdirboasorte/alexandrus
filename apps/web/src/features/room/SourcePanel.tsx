@@ -253,7 +253,7 @@ export function SourcePanel(p: Props) {
       )}
       {!p.canCapture && <Note tone="bad">Este navegador não captura a tela. Para transmitir, abra a sala no Chrome ou no Edge de um computador.</Note>}
 
-      <AeroButton block icon="play" disabled={p.busy || !p.canCapture} onClick={() => p.onStart(choice, req)}>
+      <AeroButton block icon="play" disabled={p.busy || !p.canCapture} onClick={() => p.onStart(choice, req)} data-default>
         {p.busy ? 'Abrindo o seletor…' : p.submitLabel}
       </AeroButton>
       <p className="source-panel__foot">

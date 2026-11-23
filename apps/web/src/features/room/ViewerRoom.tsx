@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AeroLink } from '../../components/ui/AeroButton.tsx';
+import { AeroProgress } from '../../components/ui/controls.tsx';
 import { DEFAULT_SETTINGS } from '../../lib/capture.ts';
 import { getSavedName } from '../../lib/identity.ts';
 import { LiveRoom, useIsWindows } from './LiveRoom.tsx';
@@ -59,6 +60,7 @@ export function ViewerRoom({ code }: { code: string }) {
         <RoomBar room={null} connection={s.connection} />
         <RoomMessage title="Entrando na sala…" actions={<span />}>
           <p>{s.connection === 'reconnecting' ? 'O servidor não respondeu; tentando de novo.' : 'Conectando ao servidor do Alexandrus.'}</p>
+          <AeroProgress label="Entrando na sala" />
         </RoomMessage>
       </>
     );

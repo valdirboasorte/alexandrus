@@ -89,7 +89,7 @@ export function CreateRoomPage() {
             {error && <Note tone="bad">{error}</Note>}
 
             <div className="form-actions">
-              <AeroButton type="submit" variant="green" icon="plus" disabled={busy}>
+              <AeroButton type="submit" variant="green" icon="plus" disabled={busy} data-default>
                 {busy ? 'Criando…' : 'Criar sala'}
               </AeroButton>
             </div>

@@ -202,6 +202,13 @@ p {
   animation-play-state: paused !important;
 }
 
+/* rolando: o cenário inteiro espera a rolagem acabar (ver pauseLoopsWhileScrolling) */
+:root[data-scrolling] :is(.scene, [data-loops]) *,
+:root[data-scrolling] :is(.scene, [data-loops]) *::before,
+:root[data-scrolling] :is(.scene, [data-loops]) *::after {
+  animation-play-state: paused !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 240ms;

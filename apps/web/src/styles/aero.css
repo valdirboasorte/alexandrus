@@ -36,10 +36,17 @@
   z-index: -1;
 }
 
-/* Vidro fosco: mais legível, para formulários e textos longos */
+/*
+ * Vidro fosco: mais legível, para formulários e textos longos. Sem
+ * backdrop-filter: ele já é quase opaco, o desfoque do que passa atrás mal
+ * aparecia e custava a placa de vídeo a cada quadro de rolagem. O fosco vem do
+ * próprio gradiente leitoso.
+ */
 .glass--frost {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(240, 251, 255, 0.72) 48%, rgba(224, 246, 255, 0.66) 52%, rgba(236, 250, 255, 0.78) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(242, 251, 255, 0.84) 48%, rgba(228, 247, 255, 0.8) 52%, rgba(238, 250, 255, 0.88) 100%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   color: var(--ink);
 }
 

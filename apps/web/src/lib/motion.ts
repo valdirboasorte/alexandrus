@@ -90,3 +90,29 @@ export function pauseLoopsOffscreen(root: ParentNode = document): () => void {
   root.querySelectorAll('[data-loops]').forEach((el) => io.observe(el));
   return () => io.disconnect();
 }
+
+/**
+ * Enquanto a página rola, os loops do cenário (nuvens, bolhas, peixes, raios)
+ * ficam parados: rolando, o navegador recalcula a cada quadro o estado de cada
+ * animação, e com dezenas delas a rolagem perde quadros. Param no primeiro
+ * evento de rolagem e voltam 160 ms depois do último — quase invisível, porque
+ * tudo ali se move devagar. Instalado uma vez (main.tsx).
+ */
+export function pauseLoopsWhileScrolling(): void {
+  if (typeof window === 'undefined') return;
+  const root = document.documentElement;
+  let timer = 0;
+  const resume = () => {
+    timer = 0;
+    delete root.dataset.scrolling;
+  };
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!timer) root.dataset.scrolling = '';
+      else window.clearTimeout(timer);
+      timer = window.setTimeout(resume, 160);
+    },
+    { passive: true, capture: true },
+  );
+}

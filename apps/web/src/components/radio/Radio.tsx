@@ -9,8 +9,11 @@ import './radio.css';
  * com o player sempre escondido — na tela só aparece a rádio do site (pílula e
  * cartão com arte própria), sem marca nem link do YouTube.
  *
- * Começa sozinha no primeiro clique/toque/tecla em qualquer lugar do site
- * (nenhum navegador deixa tocar som antes disso). A pílula no canto pausa,
+ * Tenta tocar assim que a pessoa entra no site, sempre do começo do mix. O
+ * navegador só deixa sair som sem um clique antes se a pessoa já costuma ouvir
+ * coisas neste site (no Chrome, o "Media Engagement Index"); quando ele
+ * bloqueia, a rádio começa no primeiro clique/toque/tecla em qualquer lugar.
+ * Dentro da mesma visita, trocar de página não interrompe. A pílula no canto pausa,
  * pula e abre o cartão completo (lista de faixas, volume); o X do cartão volta
  * para a pílula sem parar a música.
  *
@@ -65,7 +68,6 @@ declare global {
 }
 
 const PLAYING = 1;
-const POS_KEY = 'alexandrus:radio:pos';
 const VOL_KEY = 'alexandrus:radio:vol';
 /** A pessoa pausou a rádio: não começa sozinha de novo. */
 const OFF_KEY = 'alexandrus:radio:off';
@@ -148,7 +150,8 @@ export function Radio() {
   const [held, setHeld] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(() => readNumber(POS_KEY, RADIO.firstStart, 0, RADIO.length));
+  // cada visita começa do início do mix
+  const [time, setTime] = useState(0);
   const [volume, setVolume] = useState(() => readNumber(VOL_KEY, 40, 0, 100));
   const [list, setList] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -160,8 +163,8 @@ export function Radio() {
   const timeRef = useRef(time);
   timeRef.current = time;
   const listRef = useRef<HTMLOListElement>(null);
-  /** Já começou alguma vez nesta visita (o clique inicial só vale uma vez). */
-  const startedRef = useRef(false);
+  /** A pessoa pausou pelos botões daqui: o primeiro clique não deve religar. */
+  const userPausedRef = useRef(false);
   /** Estava tocando quando foi segurada: volta a tocar quando soltar. */
   const resumeRef = useRef(false);
   const heldRef = useRef(false);
@@ -171,10 +174,8 @@ export function Radio() {
   /** O player, só se já estiver pronto para receber comandos. */
   const ready = () => (readyRef.current ? playerRef.current : null);
 
-  /** Toca. Sempre depois de uma interação de quem está no site. */
+  /** Cria o player e tenta tocar (o navegador pode segurar o som até o primeiro clique). */
   const start = useCallback(() => {
-    startedRef.current = true;
-    saveOff(false);
     if (playerRef.current) {
       // ainda carregando: o onReady já vai tocar
       if (readyRef.current) playerRef.current.playVideo();
@@ -225,12 +226,18 @@ export function Radio() {
       .catch(() => setStatus('error'));
   }, []);
 
-  // Começa sozinha na primeira interação com o site, se a pessoa não pausou antes.
+  // Ao entrar: tenta tocar já. Se o navegador segurar o som, o primeiro
+  // clique/toque/tecla em qualquer lugar solta. Quem pausou na visita anterior
+  // não ouve a rádio começar sozinha.
   useEffect(() => {
-    if (startedRef.current || readOff()) return;
+    if (readOff()) return;
+    start();
     const go = (e: Event) => {
       if (e instanceof KeyboardEvent && (e.key === 'Tab' || e.key === 'Shift')) return;
-      start();
+      if (userPausedRef.current || heldRef.current) return;
+      const p = readyRef.current ? playerRef.current : null;
+      if (!p) return; // ainda carregando: o onReady toca, agora já com o clique
+      if (p.getPlayerState() !== PLAYING) p.playVideo();
     };
     const opts = { capture: true, once: true } as const;
     window.addEventListener('pointerdown', go, opts);
@@ -268,10 +275,7 @@ export function Radio() {
     if (!playing) return;
     const id = window.setInterval(() => {
       const t = ready()?.getCurrentTime();
-      if (typeof t === 'number' && Number.isFinite(t)) {
-        setTime(t);
-        save(POS_KEY, t >= RADIO.length - 5 ? 0 : t);
-      }
+      if (typeof t === 'number' && Number.isFinite(t)) setTime(t);
     }, 1000);
     return () => window.clearInterval(id);
   }, [playing]);
@@ -302,21 +306,26 @@ export function Radio() {
   const seek = (t: number) => {
     const p = ready();
     setTime(t);
-    save(POS_KEY, t);
     if (!p) return;
     p.seekTo(t, true);
     p.playVideo();
   };
 
   const toggle = () => {
-    if (!playerRef.current) return start();
+    if (!playerRef.current) {
+      userPausedRef.current = false;
+      saveOff(false);
+      return start();
+    }
     const p = ready();
     if (!p) return;
     if (p.getPlayerState() === PLAYING) {
       p.pauseVideo();
+      userPausedRef.current = true;
       saveOff(true);
     } else {
       p.playVideo();
+      userPausedRef.current = false;
       saveOff(false);
     }
   };

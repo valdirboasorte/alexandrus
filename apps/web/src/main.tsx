@@ -8,8 +8,10 @@ import './styles/base.css';
 import './styles/aero.css';
 import { router } from './router.tsx';
 import { installHotTrack } from './lib/hotTrack.ts';
+import { pauseLoopsWhileScrolling } from './lib/motion.ts';
 
 installHotTrack();
+pauseLoopsWhileScrolling();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

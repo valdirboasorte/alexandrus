@@ -11,8 +11,6 @@ export const RADIO = {
   channelUrl: 'https://www.youtube.com/@ninchrisu',
   /** Duração do vídeo em segundos. */
   length: 8019,
-  /** Onde começa na primeira vez (o link enviado abria em 15:12). Depois, continua de onde parou. */
-  firstStart: 912,
 } as const;
 
 export interface RadioTrack {

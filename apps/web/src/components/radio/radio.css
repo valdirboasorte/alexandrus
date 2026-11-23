@@ -1,6 +1,6 @@
 /* ---------------- Rádio Aero ---------------- */
 
-/* botão fechado: uma pílula de vidro no canto, com o disco */
+/* player fechado: uma pílula de vidro no canto, com o disco e os botões (a música pode estar tocando) */
 .radio-launch {
   position: fixed;
   left: max(16px, env(safe-area-inset-left));
@@ -8,20 +8,36 @@
   z-index: 45;
   display: inline-flex;
   align-items: center;
+  gap: 4px;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 6px 8px 6px 6px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-float);
+}
+
+.radio-launch__open {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
   gap: 10px;
-  max-width: min(280px, calc(100vw - 32px));
-  padding: 6px 16px 6px 6px;
+  min-width: 0;
+  padding: 0 8px 0 0;
   border: 0;
   border-radius: var(--r-pill);
+  background: transparent;
+  color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: var(--shadow-float);
   transition: transform var(--t-press) var(--ease-out);
 }
 
-.radio-launch:active {
+.radio-launch__open:active {
   transform: scale(0.97);
+}
+
+.radio-launch__disc[data-spin] {
+  animation: radio-spin 3.2s linear infinite;
 }
 
 .radio-launch__disc,
@@ -68,7 +84,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .radio-launch:hover .radio-launch__disc {
+  .radio-launch__open:hover .radio-launch__disc {
     animation: radio-spin 2.4s linear infinite;
   }
 }
@@ -330,7 +346,8 @@
 }
 
 :root[data-motion='reduced'] .radio__disc[data-spin],
-:root[data-motion='reduced'] .radio-launch:hover .radio-launch__disc {
+:root[data-motion='reduced'] .radio-launch__disc[data-spin],
+:root[data-motion='reduced'] .radio-launch__open:hover .radio-launch__disc {
   animation: none;
 }
 

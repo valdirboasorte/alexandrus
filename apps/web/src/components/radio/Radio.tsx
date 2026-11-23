@@ -9,17 +9,20 @@ import './radio.css';
  * Rádio Aero: o mix do YouTube tocando pelo player oficial (IFrame API).
  *
  * Começa sozinha no primeiro clique/toque/tecla em qualquer lugar do site
- * (nenhum navegador deixa tocar som antes disso), já minimizada: um mini
- * player no canto. Dá para expandir para o cartão completo (lista de faixas,
- * volume) ou desligar; desligada, ela não volta sozinha nas próximas visitas.
+ * (nenhum navegador deixa tocar som antes disso), num mini player no canto,
+ * com o player visível. Dá para expandir para o cartão completo (lista de
+ * faixas, volume) ou fechar no X: o player some e a música CONTINUA, com a
+ * pílula "Rádio Aero" para pausar, pular e reabrir.
  *
- * Regras do YouTube que este componente segue:
- * - o player fica visível enquanto toca, com no mínimo 200×200 e nada por
- *   cima dele (o mini player é exatamente o mínimo); desligar pausa;
- * - só toca sozinho com o player visível na tela;
- * - youtube-nocookie.com: sem cookies de rastreio até tocar.
- * Nas salas (/sala/…) a rádio pausa e some: não pode vazar para dentro de uma
- * transmissão nem tocar por cima de uma. Ao sair da sala, volta a tocar.
+ * Atenção: tocar com o player escondido (depois do X) vai contra as regras do
+ * YouTube para players incorporados (mínimo 200×200 visível enquanto toca).
+ * Foi escolha do dono do site, ciente de que o YouTube pode bloquear o player
+ * aqui. O resto segue as regras: só começa sozinho com o player visível e usa
+ * youtube-nocookie.com (sem cookies de rastreio até tocar).
+ *
+ * Pausar pelos botões daqui é lembrado: quem pausou não ouve a rádio começar
+ * sozinha na próxima visita. Nas salas (/sala/…) a rádio pausa e some (não
+ * pode vazar para dentro de uma transmissão); ao sair da sala, volta a tocar.
  */
 
 interface YTPlayer {
@@ -60,7 +63,7 @@ declare global {
 const PLAYING = 1;
 const POS_KEY = 'alexandrus:radio:pos';
 const VOL_KEY = 'alexandrus:radio:vol';
-/** A pessoa desligou a rádio: não começa sozinha de novo. */
+/** A pessoa pausou a rádio: não começa sozinha de novo. */
 const OFF_KEY = 'alexandrus:radio:off';
 
 let apiPromise: Promise<YTNamespace> | null = null;
@@ -132,13 +135,13 @@ function clock(t: number) {
 }
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
-/** off = só a pílula; mini = player mínimo no canto; full = cartão completo. */
-type Mode = 'off' | 'mini' | 'full';
+/** pill = player escondido, só a pílula (tocando ou não); mini = player mínimo no canto; full = cartão completo. */
+type Mode = 'pill' | 'mini' | 'full';
 
 export function Radio() {
   const { pathname } = useLocation();
   const inRoom = pathname.startsWith('/sala/');
-  const [mode, setMode] = useState<Mode>('off');
+  const [mode, setMode] = useState<Mode>('pill');
   const [status, setStatus] = useState<Status>('idle');
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(() => readNumber(POS_KEY, RADIO.firstStart, 0, RADIO.length));
@@ -162,7 +165,7 @@ export function Radio() {
   const track = RADIO_TRACKS[current];
 
   /** Mostra o player e toca. Sempre depois de uma interação de quem está no site. */
-  const start = useCallback((next: Exclude<Mode, 'off'>) => {
+  const start = useCallback((next: Exclude<Mode, 'pill'>) => {
     startedRef.current = true;
     saveOff(false);
     setMode((m) => (m === 'full' ? 'full' : next));
@@ -213,13 +216,10 @@ export function Radio() {
       .catch(() => setStatus('error'));
   }, []);
 
-  /** Desligar = pausar e voltar para a pílula. Lembra a escolha. */
-  const turnOff = useCallback(() => {
-    playerRef.current?.pauseVideo();
-    setPlaying(false);
-    setMode('off');
+  /** X: esconde o player e deixa a música tocando (só a pílula fica). */
+  const hide = useCallback(() => {
+    setMode('pill');
     setList(false);
-    saveOff(true);
   }, []);
 
   // Começa sozinha na primeira interação com o site (fora das salas), se a pessoa não desligou.
@@ -301,8 +301,13 @@ export function Radio() {
   const toggle = () => {
     const p = playerRef.current;
     if (!p) return start('mini');
-    if (p.getPlayerState() === PLAYING) p.pauseVideo();
-    else p.playVideo();
+    if (p.getPlayerState() === PLAYING) {
+      p.pauseVideo();
+      saveOff(true);
+    } else {
+      p.playVideo();
+      saveOff(false);
+    }
   };
 
   const prev = () => {
@@ -317,20 +322,32 @@ export function Radio() {
 
   return (
     <>
-      {mode === 'off' && !inRoom && (
-        <button type="button" className="radio-launch glass glass--frost" onClick={() => start('mini')} aria-label="Ligar a Rádio Aero">
-          <span className="radio-launch__disc" aria-hidden>
-            <Icon name="music" />
-          </span>
-          <span className="radio-launch__text">
-            <strong>Rádio Aero</strong>
-            <span>{track.title}</span>
-          </span>
-        </button>
+      {mode === 'pill' && !inRoom && (
+        <div className="radio-launch glass glass--frost" role="group" aria-label="Rádio Aero">
+          <button type="button" className="radio-launch__open" onClick={() => start('mini')} aria-label="Mostrar o player da Rádio Aero">
+            <span className="radio-launch__disc" data-spin={playing || undefined} aria-hidden>
+              <Icon name="music" />
+            </span>
+            <span className="radio-launch__text">
+              <strong>Rádio Aero</strong>
+              <span>{track.title}</span>
+            </span>
+          </button>
+          <AeroButton
+            size="sm"
+            variant="glass"
+            iconOnly
+            icon={playing ? 'pause' : 'play'}
+            aria-label={playing ? 'Pausar a rádio' : 'Tocar a rádio'}
+            onClick={toggle}
+            disabled={status === 'loading'}
+          />
+          {status === 'ready' && <AeroButton size="sm" variant="glass" iconOnly icon="next" aria-label="Próxima faixa" onClick={next} />}
+        </div>
       )}
 
-      {/* Fica montado mesmo desligado ou numa sala: o player do YouTube continua de onde parou. */}
-      <section className="radio glass glass--frost" data-mode={mode} hidden={mode === 'off' || inRoom} aria-label="Rádio Aero">
+      {/* Fica montado mesmo escondido ou numa sala: o player do YouTube continua (escondido, tocando; na sala, pausado). */}
+      <section className="radio glass glass--frost" data-mode={mode} hidden={mode === 'pill' || inRoom} aria-label="Rádio Aero">
         {full && (
           <header className="radio__head">
             <span className="radio__disc" data-spin={playing || undefined} aria-hidden>
@@ -341,7 +358,7 @@ export function Radio() {
               <span>pelo YouTube · {RADIO.channel}</span>
             </span>
             <AeroButton size="sm" variant="glass" iconOnly icon="minimize" aria-label="Minimizar a rádio" onClick={() => setMode('mini')} />
-            <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Desligar a rádio" onClick={turnOff} />
+            <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar o player (a música continua)" onClick={hide} />
           </header>
         )}
 
@@ -411,7 +428,7 @@ export function Radio() {
           ) : (
             <>
               <AeroButton size="sm" variant="glass" iconOnly icon="maximize" aria-label="Expandir a rádio" onClick={() => setMode('full')} />
-              <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Desligar a rádio" onClick={turnOff} />
+              <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar o player (a música continua)" onClick={hide} />
             </>
           )}
         </div>

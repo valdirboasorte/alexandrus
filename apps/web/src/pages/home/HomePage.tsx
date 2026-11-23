@@ -4,7 +4,7 @@ import { SiteFooter } from '../../components/layout/SiteFooter.tsx';
 import { CodeEntry } from '../../components/room/CodeEntry.tsx';
 import { SystemCheck } from '../../components/check/SystemCheck.tsx';
 import { AeroLink } from '../../components/ui/AeroButton.tsx';
-import { Bubbles, Clouds, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun, WaterSurface } from '../../components/scenery/parts.tsx';
+import { AuroraRibbons, Bubbles, Clouds, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun, WaterSurface } from '../../components/scenery/parts.tsx';
 import { FishSchool } from '../../components/scenery/Scene.tsx';
 import '../../components/scenery/scenery.css';
 import { AudioRoutes } from './AudioRoutes.tsx';
@@ -21,6 +21,7 @@ export function HomePage() {
       <section className="hero" aria-labelledby="hero-title" data-loops>
         <div className="scene" aria-hidden>
           <div className="scene__sky" />
+          <AuroraRibbons />
           <Sun />
           <Clouds />
           <GlassCity />

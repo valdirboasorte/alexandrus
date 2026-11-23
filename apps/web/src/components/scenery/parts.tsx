@@ -40,6 +40,74 @@ export function SceneDefs() {
           <stop offset="0" stopColor="#9be85a" />
           <stop offset="1" stopColor="#1f8a3a" />
         </linearGradient>
+        {/* nuvem com volume: cada "bolo" tem a própria luz no alto e sombra azulada embaixo */}
+        <radialGradient id="aero-puff" cx="38%" cy="28%" r="74%">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="0.48" stopColor="#fbfdff" />
+          <stop offset="0.76" stopColor="#e1effb" />
+          <stop offset="1" stopColor="#b7d5ef" />
+        </radialGradient>
+        <linearGradient id="aero-cloud-base" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#d9ebf9" />
+          <stop offset="1" stopColor="#a6c8e8" />
+        </linearGradient>
+        <filter id="aero-soft" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="1.3" />
+        </filter>
+        <filter id="aero-blur-8" x="-20%" y="-60%" width="140%" height="220%">
+          <feGaussianBlur stdDeviation="8" />
+        </filter>
+        <filter id="aero-blur-3" x="-10%" y="-40%" width="120%" height="180%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        {/* morros: neblina ao longe, brilho na crista, faixas de grama cortada, folhinhas */}
+        <linearGradient id="aero-hill-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#b9ecd0" />
+          <stop offset="0.5" stopColor="#8fd8a6" />
+          <stop offset="1" stopColor="#6cc07e" />
+        </linearGradient>
+        <linearGradient id="aero-hill-gloss" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.62" />
+          <stop offset="0.16" stopColor="#ffffff" stopOpacity="0.16" />
+          <stop offset="0.34" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <pattern id="aero-mow" width="150" height="320" patternUnits="userSpaceOnUse" patternTransform="skewX(-38)">
+          <rect width="75" height="320" fill="#ffffff" opacity="0.075" />
+        </pattern>
+        <pattern id="aero-blades" width="16" height="20" patternUnits="userSpaceOnUse">
+          <path d="M2 20Q3 11 1 3" stroke="#e2ffbe" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <path d="M7 20Q8 13 10 6" stroke="#c4f390" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          <path d="M12 20Q12 14 14 9" stroke="#d7fba8" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        </pattern>
+        <linearGradient id="aero-crest-fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#000" />
+        </linearGradient>
+        <mask id="aero-crest-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1440" height="320">
+          <rect x="0" y="222" width="1440" height="46" fill="url(#aero-crest-fade)" />
+        </mask>
+        <radialGradient id="aero-canopy" cx="38%" cy="30%" r="72%">
+          <stop offset="0" stopColor="#d4ff9a" />
+          <stop offset="0.5" stopColor="#6fcf3c" />
+          <stop offset="1" stopColor="#2f8f22" />
+        </radialGradient>
+        {/* torres de vidro: face clara, face lateral mais funda */}
+        <linearGradient id="aero-tower-face" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="0.45" stopColor="#d6f2ff" stopOpacity="0.82" />
+          <stop offset="1" stopColor="#8fd2f7" stopOpacity="0.75" />
+        </linearGradient>
+        <linearGradient id="aero-tower-side" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#7cc6f2" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#3f9ee0" stopOpacity="0.7" />
+        </linearGradient>
+        <pattern id="aero-floors" width="10" height="9" patternUnits="userSpaceOnUse">
+          <rect y="7" width="10" height="1.2" fill="#ffffff" opacity="0.55" />
+        </pattern>
+        <linearGradient id="aero-haze" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="1" stopColor="#f2fbff" stopOpacity="0.9" />
+        </linearGradient>
         <radialGradient id="aero-fish-orange" cx="40%" cy="35%" r="70%">
           <stop offset="0" stopColor="#ffe08a" />
           <stop offset="0.5" stopColor="#ff9a2e" />
@@ -62,18 +130,30 @@ export function SceneDefs() {
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * Cúmulo com volume: base achatada azulada, "bolos" de trás maiores e os da
+ * frente menores e mais baixos, cada um com luz no alto e sombra embaixo — é
+ * a sobreposição que desenha os gomos. Uma sombra difusa por baixo.
+ */
 export function Cloud({ className, style }: { className?: string; style?: Vars }) {
   return (
-    <svg className={`cloud ${className ?? ''}`} style={style} viewBox="0 0 240 120" aria-hidden focusable="false">
-      <g fill="url(#aero-cloud)">
-        <circle cx="62" cy="76" r="34" />
-        <circle cx="102" cy="54" r="44" />
-        <circle cx="152" cy="60" r="38" />
-        <circle cx="190" cy="80" r="27" />
-        <circle cx="34" cy="92" r="20" />
-        <rect x="30" y="78" width="180" height="34" rx="17" />
+    <svg className={`cloud ${className ?? ''}`} style={style} viewBox="0 0 300 160" aria-hidden focusable="false">
+      <ellipse cx="152" cy="132" rx="124" ry="16" fill="#8fbde6" opacity="0.5" filter="url(#aero-blur-8)" />
+      <g filter="url(#aero-soft)">
+        <path d="M34 120c-14 0-16-18-2-22 12-4 24 2 32 4h182c18-5 34 3 30 15-2 8-12 10-22 10H46c-8 0-12-3-12-7Z" fill="url(#aero-cloud-base)" />
+        <g fill="url(#aero-puff)">
+          <circle cx="114" cy="70" r="46" />
+          <circle cx="170" cy="58" r="54" />
+          <circle cx="222" cy="80" r="40" />
+          <circle cx="72" cy="92" r="34" />
+          <circle cx="140" cy="98" r="36" />
+          <circle cx="196" cy="102" r="32" />
+          <circle cx="252" cy="104" r="24" />
+          <circle cx="42" cy="108" r="20" />
+          <circle cx="98" cy="110" r="24" />
+        </g>
       </g>
-      <path d="M70 52c8-18 34-26 52-14" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" opacity="0.9" />
+      <path d="M134 28c20-16 52-16 70 2" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" opacity="0.85" filter="url(#aero-soft)" />
     </svg>
   );
 }
@@ -100,6 +180,61 @@ export function Clouds({ count = CLOUDS.length }: { count?: number }) {
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * Faixas de luz que atravessam o céu, como nas telas do Vista e do Windows 7:
+ * nascem baixas à esquerda (atrás dos morros) e sobem para a direita, passando
+ * por trás da tela de vidro, longe do título. Cada uma é uma fita difusa com
+ * um fio de luz nítido numa borda. Respiram devagar (só transform).
+ */
+export function AuroraRibbons() {
+  return (
+    <svg className="aurora" viewBox="0 0 1440 640" preserveAspectRatio="none" aria-hidden focusable="false">
+      <defs>
+        <linearGradient id="aurora-a" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.22" stopColor="#effcff" stopOpacity="0.7" />
+          <stop offset="0.52" stopColor="#86ecff" stopOpacity="0.55" />
+          <stop offset="0.78" stopColor="#c2ff96" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="aurora-b" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.35" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop offset="0.7" stopColor="#a9e6ff" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="aurora-thread" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.3" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="0.75" stopColor="#e6fdff" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <g className="aurora__band aurora__band--1">
+        <path
+          d="M-60 700C360 700 640 640 900 470S1240 230 1500 100L1500 180C1250 300 1100 480 910 530S340 730 -60 750Z"
+          fill="url(#aurora-a)"
+          filter="url(#aero-blur-8)"
+        />
+        <path d="M-60 700C360 700 640 640 900 470S1240 230 1500 100" fill="none" stroke="url(#aurora-thread)" strokeWidth="2.2" />
+      </g>
+      <g className="aurora__band aurora__band--2">
+        <path
+          d="M-60 730C380 720 660 670 950 520S1260 320 1500 190L1500 226C1270 350 1120 540 960 556S400 750 -60 762Z"
+          fill="url(#aurora-b)"
+          filter="url(#aero-blur-3)"
+        />
+        <path d="M-60 730C380 720 660 670 950 520S1260 320 1500 190" fill="none" stroke="url(#aurora-thread)" strokeWidth="1.4" opacity="0.8" />
+      </g>
+      <g className="aurora__band aurora__band--3">
+        <path d="M-60 680C340 680 620 580 880 420S1220 190 1500 50" fill="none" stroke="url(#aurora-thread)" strokeWidth="1.2" opacity="0.65" />
+      </g>
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
 export function Sun() {
   return (
     <div className="sun" aria-hidden>
@@ -114,42 +249,108 @@ export function Sun() {
 
 /* ------------------------------------------------------------------ */
 
-/** Cidade de vidro ao longe: a tecnologia que convive com o campo. */
+/**
+ * Cidade de vidro ao longe: a tecnologia que convive com o campo. Torres com
+ * face clara e lateral mais funda, andares marcados por linhas finas, um fio
+ * de luz na quina e neblina na base (fica atrás dos morros).
+ */
+const TOWERS: { x: number; w: number; top: number; cap: 'dome' | 'slant' | 'spire' | 'flat'; side: number }[] = [
+  { x: 6, w: 30, top: 150, cap: 'flat', side: 8 },
+  { x: 40, w: 34, top: 92, cap: 'slant', side: 10 },
+  { x: 80, w: 40, top: 40, cap: 'spire', side: 12 },
+  { x: 126, w: 30, top: 118, cap: 'dome', side: 8 },
+  { x: 160, w: 36, top: 74, cap: 'slant', side: 10 },
+  { x: 202, w: 26, top: 136, cap: 'dome', side: 7 },
+  { x: 232, w: 22, top: 168, cap: 'flat', side: 6 },
+];
+
+function capPath(t: (typeof TOWERS)[number]) {
+  const { x, w, top } = t;
+  switch (t.cap) {
+    case 'dome':
+      return `M${x} ${top}q${w / 2}-${w * 0.7} ${w} 0Z`;
+    case 'slant':
+      return `M${x} ${top}l${w} -${w * 0.55}V${top}Z`;
+    case 'spire':
+      return `M${x + w * 0.2} ${top}L${x + w / 2} ${top - 30}L${x + w * 0.8} ${top}Z`;
+    default:
+      return '';
+  }
+}
+
 export function GlassCity() {
-  const towers = [
-    [10, 120, 26], [40, 80, 20], [64, 150, 30], [98, 60, 22], [124, 110, 24], [152, 40, 18], [174, 96, 26],
-  ];
   return (
-    <svg className="glass-city" viewBox="0 0 210 260" preserveAspectRatio="xMinYMax meet" aria-hidden focusable="false">
-      {towers.map(([x, top, w], i) => (
+    <svg className="glass-city" viewBox="0 0 270 300" preserveAspectRatio="xMinYMax meet" aria-hidden focusable="false">
+      {TOWERS.map((t, i) => (
         <g key={i}>
-          <path d={`M${x} 260V${top + 10}q0-10 ${w / 2}-14q${w / 2} 4 ${w / 2} 14V260Z`} fill="url(#aero-tower)" />
-          <path d={`M${x + 4} 258V${top + 14}`} stroke="#fff" strokeOpacity="0.8" strokeWidth="1.6" />
-          {i % 2 === 0 && <path d={`M${x + w / 2} ${top - 4}v-${14 + i * 2}`} stroke="#fff" strokeOpacity="0.7" strokeWidth="1.4" />}
+          <path d={`M${t.x + t.w} ${t.top}l${t.side} -${t.side * 0.5}V300h-${t.side}Z`} fill="url(#aero-tower-side)" />
+          <rect x={t.x} y={t.top} width={t.w} height={300 - t.top} fill="url(#aero-tower-face)" />
+          <rect x={t.x} y={t.top} width={t.w} height={300 - t.top} fill="url(#aero-floors)" />
+          {t.cap !== 'flat' && <path d={capPath(t)} fill="url(#aero-tower-face)" />}
+          <path d={`M${t.x + 3} 298V${t.top + 4}`} stroke="#fff" strokeOpacity="0.9" strokeWidth="1.6" />
+          {t.cap === 'spire' && <path d={`M${t.x + t.w / 2} ${t.top - 30}v-22`} stroke="#fff" strokeOpacity="0.8" strokeWidth="1.4" />}
         </g>
       ))}
+      <rect x="0" y="210" width="270" height="90" fill="url(#aero-haze)" />
     </svg>
   );
 }
 
 /* ------------------------------------------------------------------ */
 
+const BACK = 'M0 150C200 86 420 104 650 142s430 24 790-30V320H0Z';
+const MID = 'M0 214c240-58 520-40 780-8s440 28 660-24V320H0Z';
+const FRONT = 'M0 268c300-40 560-44 820-22s420 16 620-6V320H0Z';
+
+function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <rect x="-2" y="-6" width="4" height="16" rx="2" fill="#6d4c2c" />
+      <circle cx="0" cy="-18" r="14" fill="url(#aero-canopy)" />
+      <circle cx="-10" cy="-10" r="10" fill="url(#aero-canopy)" />
+      <circle cx="10" cy="-9" r="11" fill="url(#aero-canopy)" />
+    </g>
+  );
+}
+
+const SPARKLES: [number, number, number][] = [
+  [180, 276, 0],
+  [470, 250, 1.4],
+  [760, 262, 2.6],
+  [1010, 270, 0.7],
+  [1290, 246, 1.9],
+];
+
+/**
+ * Morros em camadas: um ao longe, azulado pela neblina; atrás, com duas
+ * árvores redondas; no meio; e na frente, com faixas de grama cortada e
+ * folhinhas na crista. Cada um tem brilho no alto, como plástico molhado.
+ */
 export function Hills({ variant = 'full' }: { variant?: 'full' | 'low' }) {
   return (
     <svg className={`hills hills--${variant}`} viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden focusable="false">
-      <path d="M0 150C200 86 420 104 650 142s430 24 790-30V320H0Z" fill="url(#aero-hill-back)" />
-      <path d="M0 150C200 86 420 104 650 142s430 24 790-30" fill="none" stroke="#fff" strokeOpacity="0.45" strokeWidth="3" />
-      <g fill="#4fae32" opacity="0.85">
-        <circle cx="1080" cy="132" r="13" />
-        <circle cx="1098" cy="128" r="16" />
-        <circle cx="1116" cy="134" r="11" />
-        <circle cx="300" cy="104" r="10" />
-        <circle cx="314" cy="100" r="13" />
+      <path d="M0 118C180 70 360 82 520 106s340-14 520-36 260-6 400 14V320H0Z" fill="url(#aero-hill-far)" opacity="0.9" />
+      <path d={BACK} fill="url(#aero-hill-back)" />
+      <path d={BACK} fill="url(#aero-hill-gloss)" />
+      <Tree x={706} y={145} s={0.85} />
+      <Tree x={1384} y={119} />
+      <Tree x={1410} y={123} s={0.7} />
+      <path d={MID} fill="url(#aero-hill-mid)" />
+      <path d={MID} fill="url(#aero-hill-gloss)" />
+      <path d={FRONT} fill="url(#aero-hill-front)" />
+      <path d={FRONT} fill="url(#aero-mow)" />
+      <path d={FRONT} fill="url(#aero-blades)" mask="url(#aero-crest-mask)" />
+      <path d={FRONT} fill="url(#aero-hill-gloss)" />
+      <g className="sparkles" fill="#ffffff">
+        {SPARKLES.map(([x, y, d], i) => (
+          <path
+            key={i}
+            className="sparkle"
+            style={{ '--d': `${d}s` } as Vars}
+            d={`M${x} ${y - 7}l1.4 5.6 5.6 1.4-5.6 1.4-1.4 5.6-1.4-5.6-5.6-1.4 5.6-1.4Z`}
+          />
+        ))}
       </g>
-      <path d="M0 214c240-58 520-40 780-8s440 28 660-24V320H0Z" fill="url(#aero-hill-mid)" />
-      <path d="M0 214c240-58 520-40 780-8s440 28 660-24" fill="none" stroke="#e9ffd0" strokeOpacity="0.5" strokeWidth="3" />
-      <path d="M0 268c300-40 560-44 820-22s420 16 620-6V320H0Z" fill="url(#aero-hill-front)" />
-      <path d="M0 268c300-40 560-44 820-22s420 16 620-6" fill="none" stroke="#f2ffd9" strokeOpacity="0.55" strokeWidth="2.5" />
     </svg>
   );
 }

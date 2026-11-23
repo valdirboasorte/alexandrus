@@ -20,6 +20,26 @@ import { StreamReceiver, type ReceiverState } from '../../lib/rtc/StreamReceiver
 import type { SenderStats, ViewerStats } from '../../lib/rtc/stats.ts';
 import { SignalingClient, type SignalingState } from '../../lib/signaling.ts';
 import { signalingUrl } from '../../lib/server-url.ts';
+import { RADIO_HOLD_EVENT } from '../../components/radio/Radio.tsx';
+
+const BROWSER_PROCESS = /^(chrome|msedge|brave|opera|vivaldi|firefox|arc)(\.exe)?$/i;
+
+/**
+ * A rádio do site toca nesta aba. Ela só entraria na transmissão se a captura
+ * de som pegasse o próprio navegador: Ponte com "tudo menos um app" (a menos
+ * que o excluído seja o navegador) ou Ponte capturando o navegador. Som da aba,
+ * da janela de outro programa e do sistema (o Chrome tira a própria aba) não.
+ */
+function radioWouldLeak(route: AudioRoute, process: string | null): boolean {
+  const isBrowser = !!process && BROWSER_PROCESS.test(process);
+  if (route === 'process-exclude') return !isBrowser;
+  if (route === 'process') return isBrowser;
+  return false;
+}
+
+function holdRadio(hold: boolean) {
+  window.dispatchEvent(new CustomEvent(RADIO_HOLD_EVENT, { detail: hold }));
+}
 
 /*
  * Uma sessão de sala para qualquer participante. Todo mundo pode:
@@ -248,6 +268,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
       void bcRef.current?.setTracks(null, null);
       setPreviewStream(null);
       setLive(null);
+      holdRadio(false);
       if (silent) streamInfoRef.current = { ...OFFLINE_STREAM };
       else publishStream({ ...OFFLINE_STREAM });
     },
@@ -364,6 +385,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
 
     return () => {
       window.clearTimeout(retryTimer);
+      holdRadio(false);
       stopTracks(tracksRef.current);
       tracksRef.current = NO_TRACKS;
       for (const rx of receivers.values()) rx.close(false);
@@ -433,6 +455,7 @@ export function useRoomSession(code: string, identity: RoomIdentity, initialSett
         const vs = cap.video.getSettings();
         setPreviewStream(new MediaStream([cap.video]));
         setLive({ surface: cap.surface, label: cap.label, route, audioProcess, audioMissing });
+        holdRadio(radioWouldLeak(route, audioProcess));
         publishStream({
           live: true,
           source: cap.surface,

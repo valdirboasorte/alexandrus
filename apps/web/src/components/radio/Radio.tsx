@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
 import { RADIO, RADIO_TRACKS, trackAt } from '../../content/radio.ts';
 import { AeroButton } from '../ui/AeroButton.tsx';
 import { Icon } from '../ui/Icon.tsx';
@@ -20,9 +19,15 @@ import './radio.css';
  * pode bloquear o player aqui (aí a rádio avisa que não carregou).
  *
  * Pausar pelos botões daqui é lembrado: quem pausou não ouve a rádio começar
- * sozinha na próxima visita. Nas salas (/sala/…) a rádio pausa e some (não
- * pode vazar para dentro de uma transmissão); ao sair da sala, volta a tocar.
+ * sozinha na próxima visita. Toca em todo o site, salas incluídas. Só pausa
+ * sozinha quando a sua transmissão capturaria o som do próprio navegador
+ * (Ponte com "tudo menos um app", ou o app escolhido é o navegador): aí ela
+ * entraria no áudio de quem assiste. Volta quando essa captura acaba.
+ * O aviso vem de useRoomSession pelo evento RADIO_HOLD_EVENT.
  */
+
+/** Evento da janela: detail = true segura a rádio, false solta. */
+export const RADIO_HOLD_EVENT = 'alexandrus:radio-hold';
 
 interface YTPlayer {
   playVideo(): void;
@@ -138,9 +143,9 @@ type Status = 'idle' | 'loading' | 'ready' | 'error';
 type Mode = 'pill' | 'full';
 
 export function Radio() {
-  const { pathname } = useLocation();
-  const inRoom = pathname.startsWith('/sala/');
   const [mode, setMode] = useState<Mode>('pill');
+  /** Segurada: a sua transmissão capturaria o som da rádio. */
+  const [held, setHeld] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(() => readNumber(POS_KEY, RADIO.firstStart, 0, RADIO.length));
@@ -157,10 +162,9 @@ export function Radio() {
   const listRef = useRef<HTMLOListElement>(null);
   /** Já começou alguma vez nesta visita (o clique inicial só vale uma vez). */
   const startedRef = useRef(false);
-  /** Estava tocando quando entrou numa sala: volta a tocar ao sair. */
+  /** Estava tocando quando foi segurada: volta a tocar quando soltar. */
   const resumeRef = useRef(false);
-  const inRoomRef = useRef(inRoom);
-  inRoomRef.current = inRoom;
+  const heldRef = useRef(false);
 
   const current = trackAt(time);
   const track = RADIO_TRACKS[current];
@@ -202,12 +206,12 @@ export function Radio() {
               readyRef.current = true;
               setStatus('ready');
               e.target.setVolume(volumeRef.current);
-              if (inRoomRef.current) resumeRef.current = true;
+              if (heldRef.current) resumeRef.current = true;
               else e.target.playVideo();
             },
             onStateChange: (e) => {
-              // numa sala nunca toca: se começou enquanto a pessoa já estava lá, pausa e espera
-              if (e.data === PLAYING && inRoomRef.current) {
+              // segurada nunca toca (entraria na transmissão): pausa e espera soltar
+              if (e.data === PLAYING && heldRef.current) {
                 resumeRef.current = true;
                 e.target.pauseVideo();
                 return;
@@ -221,9 +225,9 @@ export function Radio() {
       .catch(() => setStatus('error'));
   }, []);
 
-  // Começa sozinha na primeira interação com o site (fora das salas), se a pessoa não pausou antes.
+  // Começa sozinha na primeira interação com o site, se a pessoa não pausou antes.
   useEffect(() => {
-    if (inRoom || startedRef.current || readOff()) return;
+    if (startedRef.current || readOff()) return;
     const go = (e: Event) => {
       if (e instanceof KeyboardEvent && (e.key === 'Tab' || e.key === 'Shift')) return;
       start();
@@ -235,23 +239,29 @@ export function Radio() {
       window.removeEventListener('pointerdown', go, opts);
       window.removeEventListener('keydown', go, opts);
     };
-  }, [inRoom, start]);
+  }, [start]);
 
-  // Entrou numa sala: pausa (e lembra se estava tocando). Saiu: volta a tocar.
+  // A sua transmissão capturaria a rádio: segura (pausa e lembra). Acabou: solta e volta.
   useEffect(() => {
-    const p = ready();
-    if (inRoom) {
-      // player ainda carregando: o onReady vê que está numa sala e não toca
-      if (p && p.getPlayerState() === PLAYING) {
-        resumeRef.current = true;
-        p.pauseVideo();
+    const onHold = (e: Event) => {
+      const hold = (e as CustomEvent<boolean>).detail === true;
+      if (hold === heldRef.current) return;
+      heldRef.current = hold;
+      setHeld(hold);
+      const p = readyRef.current ? playerRef.current : null;
+      if (hold) {
+        if (p && p.getPlayerState() === PLAYING) {
+          resumeRef.current = true;
+          p.pauseVideo();
+        }
+      } else if (resumeRef.current) {
+        resumeRef.current = false;
+        p?.playVideo();
       }
-      setList(false);
-    } else if (resumeRef.current) {
-      resumeRef.current = false;
-      p?.playVideo();
-    }
-  }, [inRoom]);
+    };
+    window.addEventListener(RADIO_HOLD_EVENT, onHold);
+    return () => window.removeEventListener(RADIO_HOLD_EVENT, onHold);
+  }, []);
 
   // posição: acompanha a faixa e lembra onde parou
   useEffect(() => {
@@ -318,7 +328,13 @@ export function Radio() {
   };
   const next = () => seek(RADIO_TRACKS[Math.min(RADIO_TRACKS.length - 1, current + 1)].at);
 
-  const subtitle = status === 'loading' ? 'Sintonizando…' : status === 'error' ? 'Não carregou agora' : track.title;
+  const subtitle = held
+    ? 'Pausada: entraria na sua transmissão'
+    : status === 'loading'
+      ? 'Sintonizando…'
+      : status === 'error'
+        ? 'Não carregou agora'
+        : track.title;
   const playButton = (size: 'sm' | 'md', withName: boolean) => (
     <AeroButton
       size={size}
@@ -336,7 +352,7 @@ export function Radio() {
       {/* O player de verdade: escondido e fora do alcance do teclado. Fica montado para não perder a posição. */}
       <div ref={hostRef} className="radio__engine" aria-hidden inert />
 
-      {mode === 'pill' && !inRoom && (
+      {mode === 'pill' && (
         <div className="radio-launch glass glass--frost" role="group" aria-label="Rádio Aero">
           <button type="button" className="radio-launch__open" onClick={() => setMode('full')} aria-label="Abrir a Rádio Aero">
             <span className="radio-launch__disc" data-spin={playing || undefined} aria-hidden>
@@ -352,7 +368,7 @@ export function Radio() {
         </div>
       )}
 
-      <section className="radio glass glass--frost" hidden={mode !== 'full' || inRoom} aria-label="Rádio Aero">
+      <section className="radio glass glass--frost" hidden={mode !== 'full'} aria-label="Rádio Aero">
         <header className="radio__head">
           <span className="radio__title">
             <strong>Rádio Aero</strong>
@@ -374,6 +390,12 @@ export function Radio() {
           </span>
         </div>
 
+        {held && (
+          <p className="radio__error">
+            Pausada enquanto você transmite: do jeito que o som está sendo capturado, a rádio entraria no áudio de quem assiste. Ela volta sozinha
+            quando você parar ou trocar a fonte.
+          </p>
+        )}
         {status === 'error' ? (
           <p className="radio__error">A rádio não carregou agora (bloqueador de anúncios ou sem internet?). Tente de novo mais tarde.</p>
         ) : (

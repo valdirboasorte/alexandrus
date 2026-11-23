@@ -2,6 +2,9 @@
 
 /* player fechado: uma pílula de vidro no canto, com o disco e os botões (a música pode estar tocando) */
 .radio-launch {
+  transition:
+    opacity 320ms var(--ease-out),
+    transform 320ms var(--ease-out);
   /* fica parada nas transições de página (não pisca com o resto) */
   view-transition-name: radio-pill;
   position: fixed;
@@ -413,5 +416,22 @@
 @starting-style {
   :root[data-motion='reduced'] .radio {
     transform: none;
+  }
+}
+
+/*
+ * Nas salas: a pílula some junto com os controles do palco quando ninguém
+ * mexe no mouse (o vídeo fica limpo) e, no celular, sobe acima do dock.
+ */
+:root:has(.stage[data-idle]) .radio-launch {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  :root:has(.live-wrap) .radio-launch,
+  :root:has(.live-wrap) .radio {
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px);
   }
 }

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Bubbles, Clouds, Fish, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun } from './parts.tsx';
+import { AuroraRibbons, Bubbles, Clouds, Fish, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun } from './parts.tsx';
 import './scenery.css';
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
@@ -12,6 +12,7 @@ export function MeadowScene() {
   return (
     <div className="scene scene--fixed scene--meadow" aria-hidden>
       <div className="scene__sky" />
+      <AuroraRibbons />
       <Sun />
       <Clouds count={4} />
       <GlassOrb style={{ '--size': 'clamp(90px, 10vw, 150px)', right: '8%', top: '58%', '--delay': '-3s' } as Vars} />
@@ -55,4 +56,4 @@ export function FishSchool({ dense = false }: { dense?: boolean }) {
   );
 }
 
-export { GlassCity, GlassOrb, Hills, Sun, Clouds, Bubbles, LightRays, Seaweed };
+export { AuroraRibbons, GlassCity, GlassOrb, Hills, Sun, Clouds, Bubbles, LightRays, Seaweed };

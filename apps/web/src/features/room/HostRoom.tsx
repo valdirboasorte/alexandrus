@@ -103,7 +103,7 @@ function HostStudio({ s, windows }: { s: RoomSession; windows: boolean }) {
         <div className="studio__left">
           <div className="studio__screen" aria-hidden>
             <div className="studio__aquarium">
-              <Bubbles count={9} seed={5} />
+              <Bubbles count={5} seed={5} />
               <p className="studio__screen-text">
                 {s.starting ? 'Escolha no seletor do navegador…' : 'Nada no ar ainda.'}
                 <span>Quando você começar, a imagem aparece aqui exatamente como quem assiste vê.</span>

@@ -33,8 +33,10 @@
   transform-box: fill-box;
 }
 
+/* gira só com o mouse em cima: girar sempre repintaria o logo a cada quadro */
 .globe--spin .globe__land {
   animation: globe-turn 28s linear infinite;
+  animation-play-state: paused;
 }
 
 @keyframes globe-turn {
@@ -45,4 +47,9 @@
 
 :root[data-motion='reduced'] .globe--spin .globe__land {
   animation: none;
+}
+
+:is(a, button):hover .globe--spin .globe__land,
+.globe--spin:hover .globe__land {
+  animation-play-state: running;
 }

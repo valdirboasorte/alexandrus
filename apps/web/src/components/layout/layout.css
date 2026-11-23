@@ -231,6 +231,7 @@
 
 .site-footer .seaweed--right {
   right: -10px;
+  --flip: -1;
   transform: scaleX(-1);
 }
 

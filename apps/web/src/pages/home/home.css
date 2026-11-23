@@ -142,16 +142,26 @@
   animation: screen-wake 900ms ease 520ms both;
 }
 
-/* brilho que atravessa o vidro */
+/* reflexo fixo do vidro */
 .hero-screen__glass::after {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(118deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0) 35%),
-    linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.3) 48%, transparent 56%);
-  background-size: 100% 100%, 300% 100%;
-  background-position: 0 0, 120% 0;
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0) 35%);
+  pointer-events: none;
+}
+
+/* brilho que atravessa o vidro de vez em quando: uma faixa que se move (transform), não um fundo repintado */
+.hero-screen__glass::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: -45%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.3) 50%, transparent 80%);
+  will-change: transform;
   animation: glass-sweep 9s var(--ease-in-out) infinite;
   pointer-events: none;
 }
@@ -159,10 +169,10 @@
 @keyframes glass-sweep {
   0%,
   62% {
-    background-position: 0 0, 120% 0;
+    transform: translateX(0);
   }
   100% {
-    background-position: 0 0, -40% 0;
+    transform: translateX(330%);
   }
 }
 
@@ -332,9 +342,11 @@
   filter: drop-shadow(0 0 8px rgba(160, 240, 255, 0.9));
 }
 
+/* corre duas voltas junto com a tela acordando e para: um traço animado dentro
+   de um svg com brilho repinta a área toda a cada quadro, não dá para ficar sempre */
 .hero-screen__spark {
   stroke-dasharray: 70 930;
-  animation: spark-run 5.5s linear infinite;
+  animation: spark-run 3.2s var(--ease-in-out) 1.1s 2 both;
   opacity: 0.95;
 }
 
@@ -375,6 +387,7 @@
 .depths .seaweed--right {
   right: 0;
   left: auto;
+  --flip: -1;
   transform: scaleX(-1);
 }
 
@@ -603,7 +616,8 @@
   stroke-linecap: round;
   stroke-dasharray: 2 22;
   vector-effect: non-scaling-stroke;
-  animation: flow 1.1s linear infinite;
+  /* em passos: ~20 atualizações por segundo bastam para pontinhos e custam um terço */
+  animation: flow 1.1s steps(22) infinite;
 }
 
 .routes__flow--blue {

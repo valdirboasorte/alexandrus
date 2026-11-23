@@ -4,7 +4,7 @@ import { SiteFooter } from '../../components/layout/SiteFooter.tsx';
 import { CodeEntry } from '../../components/room/CodeEntry.tsx';
 import { SystemCheck } from '../../components/check/SystemCheck.tsx';
 import { AeroLink } from '../../components/ui/AeroButton.tsx';
-import { AuroraRibbons, Bubbles, Clouds, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun, WaterSurface } from '../../components/scenery/parts.tsx';
+import { AuroraRibbons, Bubbles, Clouds, GlassCity, GlassOrb, HillSparkles, Hills, LightRays, Seaweed, Sun, WaterSurface } from '../../components/scenery/parts.tsx';
 import { FishSchool } from '../../components/scenery/Scene.tsx';
 import '../../components/scenery/scenery.css';
 import { AudioRoutes } from './AudioRoutes.tsx';
@@ -29,6 +29,7 @@ export function HomePage() {
           <GlassOrb className="hero__orb-small" style={{ '--size': 'clamp(36px, 3.4vw, 58px)', '--delay': '-5s' } as Vars} />
           <GlassOrb className="hero__orb-tiny" style={{ '--size': '30px', '--delay': '-7s' } as Vars} />
           <Hills />
+          <HillSparkles />
         </div>
 
         <div className="page hero__content vt-page" id="conteudo" style={{ viewTransitionName: 'page-inicio' }}>
@@ -61,7 +62,7 @@ export function HomePage() {
         <div className="hero__water" aria-hidden>
           <WaterSurface />
           <LightRays count={4} />
-          <Bubbles count={12} seed={3} />
+          <Bubbles count={7} seed={3} />
           <FishSchool />
           <Seaweed className="seaweed--left" />
           <Seaweed className="seaweed--right" />
@@ -72,7 +73,7 @@ export function HomePage() {
       <div className="depths" data-loops>
         <div className="depths__light" aria-hidden>
           <LightRays count={5} />
-          <Bubbles count={10} seed={41} className="depths__bubbles" />
+          <Bubbles count={6} seed={41} className="depths__bubbles" />
         </div>
 
         <section className="page depths__section audio-section" aria-labelledby="som-title">

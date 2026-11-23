@@ -187,49 +187,52 @@ export function Clouds({ count = CLOUDS.length }: { count?: number }) {
  * um fio de luz nítido numa borda. Respiram devagar (só transform).
  */
 export function AuroraRibbons() {
+  // Três <svg> separados: cada faixa vira uma camada que a placa de vídeo move
+  // sozinha (transform no elemento svg). Animar <g> dentro de um svg obrigaria
+  // a repintar o desfoque a cada quadro.
   return (
-    <svg className="aurora" viewBox="0 0 1440 640" preserveAspectRatio="none" aria-hidden focusable="false">
-      <defs>
-        <linearGradient id="aurora-a" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-          <stop offset="0.22" stopColor="#effcff" stopOpacity="0.7" />
-          <stop offset="0.52" stopColor="#86ecff" stopOpacity="0.55" />
-          <stop offset="0.78" stopColor="#c2ff96" stopOpacity="0.45" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="aurora-b" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-          <stop offset="0.35" stopColor="#ffffff" stopOpacity="0.55" />
-          <stop offset="0.7" stopColor="#a9e6ff" stopOpacity="0.45" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="aurora-thread" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-          <stop offset="0.3" stopColor="#ffffff" stopOpacity="0.95" />
-          <stop offset="0.75" stopColor="#e6fdff" stopOpacity="0.8" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <g className="aurora__band aurora__band--1">
+    <div className="aurora" aria-hidden>
+      <svg className="aurora__band aurora__band--1" viewBox="0 0 1440 640" preserveAspectRatio="none" focusable="false">
+        <defs>
+          <linearGradient id="aurora-a" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="0.22" stopColor="#effcff" stopOpacity="0.7" />
+            <stop offset="0.52" stopColor="#86ecff" stopOpacity="0.55" />
+            <stop offset="0.78" stopColor="#c2ff96" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="aurora-b" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="0.35" stopColor="#ffffff" stopOpacity="0.55" />
+            <stop offset="0.7" stopColor="#a9e6ff" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="aurora-thread" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="0.3" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="0.75" stopColor="#e6fdff" stopOpacity="0.8" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
         <path
           d="M-60 700C360 700 640 640 900 470S1240 230 1500 100L1500 180C1250 300 1100 480 910 530S340 730 -60 750Z"
           fill="url(#aurora-a)"
           filter="url(#aero-blur-8)"
         />
         <path d="M-60 700C360 700 640 640 900 470S1240 230 1500 100" fill="none" stroke="url(#aurora-thread)" strokeWidth="2.2" />
-      </g>
-      <g className="aurora__band aurora__band--2">
+      </svg>
+      <svg className="aurora__band aurora__band--2" viewBox="0 0 1440 640" preserveAspectRatio="none" focusable="false">
         <path
           d="M-60 730C380 720 660 670 950 520S1260 320 1500 190L1500 226C1270 350 1120 540 960 556S400 750 -60 762Z"
           fill="url(#aurora-b)"
           filter="url(#aero-blur-3)"
         />
         <path d="M-60 730C380 720 660 670 950 520S1260 320 1500 190" fill="none" stroke="url(#aurora-thread)" strokeWidth="1.4" opacity="0.8" />
-      </g>
-      <g className="aurora__band aurora__band--3">
+      </svg>
+      <svg className="aurora__band aurora__band--3" viewBox="0 0 1440 640" preserveAspectRatio="none" focusable="false">
         <path d="M-60 680C340 680 620 580 880 420S1220 190 1500 50" fill="none" stroke="url(#aurora-thread)" strokeWidth="1.2" opacity="0.65" />
-      </g>
-    </svg>
+      </svg>
+    </div>
   );
 }
 
@@ -341,17 +344,22 @@ export function Hills({ variant = 'full' }: { variant?: 'full' | 'low' }) {
       <path d={FRONT} fill="url(#aero-mow)" />
       <path d={FRONT} fill="url(#aero-blades)" mask="url(#aero-crest-mask)" />
       <path d={FRONT} fill="url(#aero-hill-gloss)" />
-      <g className="sparkles" fill="#ffffff">
-        {SPARKLES.map(([x, y, d], i) => (
-          <path
-            key={i}
-            className="sparkle"
-            style={{ '--d': `${d}s` } as Vars}
-            d={`M${x} ${y - 7}l1.4 5.6 5.6 1.4-5.6 1.4-1.4 5.6-1.4-5.6-5.6-1.4 5.6-1.4Z`}
-          />
-        ))}
-      </g>
     </svg>
+  );
+}
+
+/**
+ * Brilhos na grama, por cima dos morros e na mesma caixa deles. São spans de
+ * HTML (não partes do svg): piscar um elemento dentro do svg repintaria os
+ * morros inteiros a cada quadro.
+ */
+export function HillSparkles({ variant = 'full' }: { variant?: 'full' | 'low' }) {
+  return (
+    <div className={`hill-sparkles hills--${variant}`} aria-hidden>
+      {SPARKLES.map(([x, y, d], i) => (
+        <span key={i} className="sparkle" style={{ left: `${(x / 1440) * 100}%`, top: `${(y / 320) * 100}%`, '--d': `${d}s` } as Vars} />
+      ))}
+    </div>
   );
 }
 
@@ -413,9 +421,9 @@ export function Bubbles({ count = 14, seed = 7, className }: { count?: number; s
         <span
           key={i}
           className="bubbles__rise"
-          style={{ '--x': `${b.x}%`, '--dur': `${b.dur}s`, '--delay': `${b.delay}s` } as Vars}
+          style={{ '--x': `${b.x}%`, '--dur': `${b.dur}s`, '--delay': `${b.delay}s`, '--sway': `${b.sway}px` } as Vars}
         >
-          <span className="bubble" style={{ '--size': `${b.size}px`, '--sway': `${b.sway}px` } as Vars} />
+          <span className="bubble" style={{ '--size': `${b.size}px` } as Vars} />
         </span>
       ))}
     </div>

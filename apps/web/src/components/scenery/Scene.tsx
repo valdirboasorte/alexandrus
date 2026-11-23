@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { AuroraRibbons, Bubbles, Clouds, Fish, GlassCity, GlassOrb, Hills, LightRays, Seaweed, Sun } from './parts.tsx';
+import { AuroraRibbons, Bubbles, Clouds, Fish, GlassCity, GlassOrb, HillSparkles, Hills, LightRays, Seaweed, Sun } from './parts.tsx';
 import './scenery.css';
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
@@ -18,6 +18,7 @@ export function MeadowScene() {
       <GlassOrb style={{ '--size': 'clamp(90px, 10vw, 150px)', right: '8%', top: '58%', '--delay': '-3s' } as Vars} />
       <GlassOrb style={{ '--size': '54px', left: '6%', top: '64%', '--delay': '-6s' } as Vars} />
       <Hills variant="low" />
+      <HillSparkles variant="low" />
     </div>
   );
 }
@@ -27,7 +28,7 @@ export function DeepScene({ calm = false }: { calm?: boolean }) {
   return (
     <div className="scene scene--fixed scene--deep" aria-hidden>
       <LightRays count={calm ? 3 : 5} />
-      {!calm && <Bubbles count={10} seed={11} />}
+      {!calm && <Bubbles count={6} seed={11} />}
       <Seaweed className="seaweed--left" />
     </div>
   );
@@ -56,4 +57,4 @@ export function FishSchool({ dense = false }: { dense?: boolean }) {
   );
 }
 
-export { AuroraRibbons, GlassCity, GlassOrb, Hills, Sun, Clouds, Bubbles, LightRays, Seaweed };
+export { AuroraRibbons, HillSparkles, GlassCity, GlassOrb, Hills, Sun, Clouds, Bubbles, LightRays, Seaweed };

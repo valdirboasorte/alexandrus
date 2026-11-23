@@ -37,16 +37,19 @@
   left: 0;
   right: 0;
   top: 6%;
-  width: 100%;
   height: 76%;
-  overflow: visible;
   mix-blend-mode: screen;
   opacity: 0.9;
 }
 
+/* cada faixa é um svg inteiro: transform no elemento = camada própria, sem repintar */
 .aurora__band {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: 50% 60%;
   will-change: transform;
   animation: aurora-breathe 28s ease-in-out infinite alternate;
 }
@@ -72,9 +75,27 @@
 
 /* ---------------- brilhos na grama ---------------- */
 
+/* mesma caixa dos morros, para as posições baterem */
+.hill-sparkles {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  pointer-events: none;
+}
+
+.hill-sparkles.hills--low {
+  height: 26%;
+}
+
 .sparkle {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: #fff;
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
   opacity: 0;
   animation: sparkle-twinkle 4.8s ease-in-out infinite;
   animation-delay: var(--d, 0s);
@@ -274,32 +295,36 @@
   background:
     radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.98) 0 8%, rgba(255, 255, 255, 0.3) 15%, rgba(255, 255, 255, 0) 32%),
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 56%, rgba(255, 255, 255, 0.4) 72%, rgba(190, 245, 255, 0.9) 100%);
-  animation: bubble-sway 3.2s ease-in-out infinite alternate;
 }
 
+/* sobe balançando numa animação só (antes eram duas encaixadas por bolha) */
 @keyframes bubble-rise {
   from {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 0;
+    animation-timing-function: ease-in-out;
   }
   8% {
     opacity: 1;
+  }
+  25% {
+    transform: translate3d(calc(0.5 * var(--sway, 12px)), calc(-0.25 * var(--rise, 110vh)), 0);
+    animation-timing-function: ease-in-out;
+  }
+  50% {
+    transform: translate3d(calc(-0.5 * var(--sway, 12px)), calc(-0.5 * var(--rise, 110vh)), 0);
+    animation-timing-function: ease-in-out;
+  }
+  75% {
+    transform: translate3d(calc(0.5 * var(--sway, 12px)), calc(-0.75 * var(--rise, 110vh)), 0);
+    animation-timing-function: ease-in-out;
   }
   85% {
     opacity: 1;
   }
   to {
-    transform: translateY(calc(-1 * var(--rise, 110vh)));
+    transform: translate3d(0, calc(-1 * var(--rise, 110vh)), 0);
     opacity: 0;
-  }
-}
-
-@keyframes bubble-sway {
-  from {
-    transform: translateX(calc(-0.5 * var(--sway)));
-  }
-  to {
-    transform: translateX(calc(0.5 * var(--sway)));
   }
 }
 
@@ -411,28 +436,18 @@
   height: auto;
 }
 
-.seaweed__frond {
-  transform-box: fill-box;
+/* a alga balança inteira, como camada (balançar cada folha dentro do svg repintaria a cada quadro) */
+.seaweed {
   transform-origin: 50% 100%;
-  animation: weed-sway 6s ease-in-out infinite alternate;
-}
-
-.seaweed__frond--b {
-  animation-duration: 7.5s;
-  animation-delay: -2s;
-}
-
-.seaweed__frond--c {
-  animation-duration: 5.2s;
-  animation-delay: -4s;
+  animation: weed-sway 6.5s ease-in-out infinite alternate;
 }
 
 @keyframes weed-sway {
   from {
-    transform: rotate(-5deg);
+    transform: scaleX(var(--flip, 1)) skewX(-4deg);
   }
   to {
-    transform: rotate(6deg);
+    transform: scaleX(var(--flip, 1)) skewX(5deg);
   }
 }
 
@@ -458,7 +473,7 @@
 
 /* Movimento reduzido: o cenário fica parado; os raios de luz continuam
    cintilando (só opacidade, nada se desloca). */
-:root[data-motion='reduced'] :is(.sun__rays, .clouds__drift, .glass-orb, .water-surface__wave, .fish-lane, .fish-bob, .seaweed__frond, .aurora__band) {
+:root[data-motion='reduced'] :is(.sun__rays, .clouds__drift, .glass-orb, .water-surface__wave, .fish-lane, .fish-bob, .seaweed, .aurora__band) {
   animation: none !important;
 }
 

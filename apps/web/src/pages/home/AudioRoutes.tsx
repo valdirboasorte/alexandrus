@@ -21,7 +21,7 @@ const SOURCES: Source[] = [
 
 export function AudioRoutes() {
   return (
-    <div className="routes">
+    <div className="routes" data-loops>
       <div className="routes__node glass glass--frost">
         <p className="routes__node-title">
           <Icon name="monitor" />

@@ -81,7 +81,7 @@ Funciona hoje, verificado:
 - Salas públicas/privadas com código de 6 caracteres e link; anfitrião volta em até 60 s se recarregar a página.
 - Transmissão WebRTC em malha, troca de fonte sem derrubar quem assiste.
 - Várias pessoas compartilhando na mesma sala (até 4 telas): quem assiste troca de tela pelas abas ou vê todas lado a lado (o som vem de uma só); o anfitrião pode deixar só ele compartilhar.
-- Rádio Aero: o mix “nintendo frutiger aero chill mix 2025” (ninchrisu) tocando pelo player oficial do YouTube. Começa sozinha no primeiro clique no site, num mini player de 200×200 no canto, e expande para o cartão com lista de faixas e volume. No X o player some e a música continua (pílula com pausar/próxima) — isso contraria a regra do YouTube contra players escondidos, por escolha do dono do site. Pausada, não volta sozinha na próxima visita. Pausa e some nas salas e volta ao sair.
+- Rádio Aero: o mix “nintendo frutiger aero chill mix 2025” (ninchrisu) tocando por um player do YouTube sempre escondido; na tela só aparece a rádio do site (pílula no canto e cartão com arte própria, lista de faixas e volume), sem marca nem link do YouTube. Começa sozinha no primeiro clique no site; pausada, não volta sozinha na próxima visita; pausa nas salas e volta ao sair. Player escondido/só áudio contraria as regras do YouTube — escolha do dono do site, que pode levar o YouTube a bloquear o player aqui.
 - Som da aba (isolado pelo navegador), som da janela quando o navegador entrega, som do sistema só com consentimento e aviso de eco.
 - Som de **um aplicativo** pela Ponte (WASAPI process loopback) e modo “tudo menos a call”.
 - “Áudio da fonte” liga/desliga na hora; resolução, FPS, qualidade e prioridade (fluidez/nitidez) ajustáveis ao vivo.

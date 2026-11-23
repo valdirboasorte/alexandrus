@@ -6,19 +6,18 @@ import { Icon } from '../ui/Icon.tsx';
 import './radio.css';
 
 /*
- * Rádio Aero: o mix do YouTube tocando pelo player oficial (IFrame API).
+ * Rádio Aero: o mix "nintendo frutiger aero chill mix 2025" tocando pela IFrame API do YouTube,
+ * com o player sempre escondido — na tela só aparece a rádio do site (pílula e
+ * cartão com arte própria), sem marca nem link do YouTube.
  *
  * Começa sozinha no primeiro clique/toque/tecla em qualquer lugar do site
- * (nenhum navegador deixa tocar som antes disso), num mini player no canto,
- * com o player visível. Dá para expandir para o cartão completo (lista de
- * faixas, volume) ou fechar no X: o player some e a música CONTINUA, com a
- * pílula "Rádio Aero" para pausar, pular e reabrir.
+ * (nenhum navegador deixa tocar som antes disso). A pílula no canto pausa,
+ * pula e abre o cartão completo (lista de faixas, volume); o X do cartão volta
+ * para a pílula sem parar a música.
  *
- * Atenção: tocar com o player escondido (depois do X) vai contra as regras do
- * YouTube para players incorporados (mínimo 200×200 visível enquanto toca).
- * Foi escolha do dono do site, ciente de que o YouTube pode bloquear o player
- * aqui. O resto segue as regras: só começa sozinho com o player visível e usa
- * youtube-nocookie.com (sem cookies de rastreio até tocar).
+ * Atenção: player escondido e só o áudio vão contra as regras do YouTube para
+ * players incorporados. Foi escolha do dono do site, ciente de que o YouTube
+ * pode bloquear o player aqui (aí a rádio avisa que não carregou).
  *
  * Pausar pelos botões daqui é lembrado: quem pausou não ouve a rádio começar
  * sozinha na próxima visita. Nas salas (/sala/…) a rádio pausa e some (não
@@ -135,8 +134,8 @@ function clock(t: number) {
 }
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
-/** pill = player escondido, só a pílula (tocando ou não); mini = player mínimo no canto; full = cartão completo. */
-type Mode = 'pill' | 'mini' | 'full';
+/** pill = só a pílula no canto; full = cartão completo. A música independe disso. */
+type Mode = 'pill' | 'full';
 
 export function Radio() {
   const { pathname } = useLocation();
@@ -164,11 +163,10 @@ export function Radio() {
   const current = trackAt(time);
   const track = RADIO_TRACKS[current];
 
-  /** Mostra o player e toca. Sempre depois de uma interação de quem está no site. */
-  const start = useCallback((next: Exclude<Mode, 'pill'>) => {
+  /** Toca. Sempre depois de uma interação de quem está no site. */
+  const start = useCallback(() => {
     startedRef.current = true;
     saveOff(false);
-    setMode((m) => (m === 'full' ? 'full' : next));
     const p = playerRef.current;
     if (p) {
       p.playVideo();
@@ -184,13 +182,15 @@ export function Radio() {
         playerRef.current = new YT.Player(mount, {
           host: 'https://www.youtube-nocookie.com',
           videoId: RADIO.videoId,
-          width: '100%',
-          height: '100%',
+          width: '200',
+          height: '200',
           playerVars: {
             autoplay: 1,
             start: Math.floor(timeRef.current),
             playsinline: 1,
             rel: 0,
+            controls: 0,
+            disablekb: 1,
             origin: window.location.origin,
           },
           events: {
@@ -201,7 +201,7 @@ export function Radio() {
               else e.target.playVideo();
             },
             onStateChange: (e) => {
-              // nunca toca escondido: se começou enquanto a pessoa já estava numa sala, pausa e espera
+              // numa sala nunca toca: se começou enquanto a pessoa já estava lá, pausa e espera
               if (e.data === PLAYING && inRoomRef.current) {
                 resumeRef.current = true;
                 e.target.pauseVideo();
@@ -216,18 +216,12 @@ export function Radio() {
       .catch(() => setStatus('error'));
   }, []);
 
-  /** X: esconde o player e deixa a música tocando (só a pílula fica). */
-  const hide = useCallback(() => {
-    setMode('pill');
-    setList(false);
-  }, []);
-
-  // Começa sozinha na primeira interação com o site (fora das salas), se a pessoa não desligou.
+  // Começa sozinha na primeira interação com o site (fora das salas), se a pessoa não pausou antes.
   useEffect(() => {
     if (inRoom || startedRef.current || readOff()) return;
     const go = (e: Event) => {
       if (e instanceof KeyboardEvent && (e.key === 'Tab' || e.key === 'Shift')) return;
-      start('mini');
+      start();
     };
     const opts = { capture: true, once: true } as const;
     window.addEventListener('pointerdown', go, opts);
@@ -277,13 +271,13 @@ export function Radio() {
     listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'center' });
   }, [list]);
 
-  // Esc: fecha a lista, depois minimiza o cartão
+  // Esc: fecha a lista, depois o cartão (a música continua)
   useEffect(() => {
     if (mode !== 'full') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (list) setList(false);
-      else setMode('mini');
+      else setMode('pill');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -300,7 +294,7 @@ export function Radio() {
 
   const toggle = () => {
     const p = playerRef.current;
-    if (!p) return start('mini');
+    if (!p) return start();
     if (p.getPlayerState() === PLAYING) {
       p.pauseVideo();
       saveOff(true);
@@ -317,123 +311,95 @@ export function Radio() {
   };
   const next = () => seek(RADIO_TRACKS[Math.min(RADIO_TRACKS.length - 1, current + 1)].at);
 
-  const mini = mode === 'mini';
-  const full = mode === 'full';
+  const subtitle = status === 'loading' ? 'Sintonizando…' : status === 'error' ? 'Não carregou agora' : track.title;
+  const playButton = (size: 'sm' | 'md', withName: boolean) => (
+    <AeroButton
+      size={size}
+      variant={size === 'md' ? 'blue' : 'glass'}
+      iconOnly
+      icon={playing ? 'pause' : 'play'}
+      aria-label={playing ? (withName ? 'Pausar a rádio' : 'Pausar') : withName ? 'Tocar a rádio' : 'Tocar'}
+      onClick={toggle}
+      disabled={status === 'loading'}
+    />
+  );
 
   return (
     <>
+      {/* O player de verdade: escondido e fora do alcance do teclado. Fica montado para não perder a posição. */}
+      <div ref={hostRef} className="radio__engine" aria-hidden inert />
+
       {mode === 'pill' && !inRoom && (
         <div className="radio-launch glass glass--frost" role="group" aria-label="Rádio Aero">
-          <button type="button" className="radio-launch__open" onClick={() => start('mini')} aria-label="Mostrar o player da Rádio Aero">
+          <button type="button" className="radio-launch__open" onClick={() => setMode('full')} aria-label="Abrir a Rádio Aero">
             <span className="radio-launch__disc" data-spin={playing || undefined} aria-hidden>
               <Icon name="music" />
             </span>
             <span className="radio-launch__text">
               <strong>Rádio Aero</strong>
-              <span>{track.title}</span>
+              <span>{subtitle}</span>
             </span>
           </button>
-          <AeroButton
-            size="sm"
-            variant="glass"
-            iconOnly
-            icon={playing ? 'pause' : 'play'}
-            aria-label={playing ? 'Pausar a rádio' : 'Tocar a rádio'}
-            onClick={toggle}
-            disabled={status === 'loading'}
-          />
+          {playButton('sm', true)}
           {status === 'ready' && <AeroButton size="sm" variant="glass" iconOnly icon="next" aria-label="Próxima faixa" onClick={next} />}
         </div>
       )}
 
-      {/* Fica montado mesmo escondido ou numa sala: o player do YouTube continua (escondido, tocando; na sala, pausado). */}
-      <section className="radio glass glass--frost" data-mode={mode} hidden={mode === 'pill' || inRoom} aria-label="Rádio Aero">
-        {full && (
-          <header className="radio__head">
-            <span className="radio__disc" data-spin={playing || undefined} aria-hidden>
-              <Icon name="music" />
-            </span>
-            <span className="radio__title">
-              <strong>Rádio Aero</strong>
-              <span>pelo YouTube · {RADIO.channel}</span>
-            </span>
-            <AeroButton size="sm" variant="glass" iconOnly icon="minimize" aria-label="Minimizar a rádio" onClick={() => setMode('mini')} />
-            <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar o player (a música continua)" onClick={hide} />
-          </header>
-        )}
+      <section className="radio glass glass--frost" hidden={mode !== 'full' || inRoom} aria-label="Rádio Aero">
+        <header className="radio__head">
+          <span className="radio__title">
+            <strong>Rádio Aero</strong>
+            <span>Frutiger Aero chill mix</span>
+          </span>
+          <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar (a música continua)" onClick={() => setMode('pill')} />
+        </header>
 
-        {/* O player do YouTube: sempre visível enquanto toca, nada por cima. No mini, exatamente 200×200. */}
-        <div className="radio__screen">
-          <div ref={hostRef} className="radio__player" />
-          {status === 'loading' && <p className="radio__msg">Sintonizando…</p>}
-          {status === 'error' && (
-            <p className="radio__msg">
-              O player do YouTube não carregou aqui (bloqueador de anúncios ou sem internet?).{' '}
-              <a href={`https://www.youtube.com/watch?v=${RADIO.videoId}&t=${Math.floor(time)}s`} target="_blank" rel="noreferrer">
-                Ouvir no YouTube
-              </a>
-            </p>
-          )}
+        <div className="radio__art" data-playing={playing || undefined} aria-hidden>
+          <span className="radio__cd">
+            <Icon name="music" />
+          </span>
+          <span className="radio__bubble radio__bubble--a" />
+          <span className="radio__bubble radio__bubble--b" />
+          <span className="radio__bubble radio__bubble--c" />
+          <span className="radio__art-num">
+            {String(current + 1).padStart(2, '0')}
+            <small>/{RADIO_TRACKS.length}</small>
+          </span>
         </div>
 
-        <div className="radio__now" aria-live="polite">
-          <span className="radio__track" title={`${track.title} · ${track.from}`}>
-            {track.title}
-          </span>
-          {full && (
+        {status === 'error' ? (
+          <p className="radio__error">A rádio não carregou agora (bloqueador de anúncios ou sem internet?). Tente de novo mais tarde.</p>
+        ) : (
+          <div className="radio__now" aria-live="polite">
+            <span className="radio__track">{status === 'loading' ? 'Sintonizando…' : track.title}</span>
             <span className="radio__game">
               {track.from} · faixa {current + 1} de {RADIO_TRACKS.length} · {clock(time)}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="radio__controls">
           <AeroButton size="sm" variant="glass" iconOnly icon="prev" aria-label="Faixa anterior" onClick={prev} disabled={status !== 'ready'} />
-          <AeroButton
-            size={mini ? 'sm' : 'md'}
-            variant="blue"
-            iconOnly
-            icon={playing ? 'pause' : 'play'}
-            aria-label={playing ? 'Pausar' : 'Tocar'}
-            onClick={toggle}
-            disabled={status === 'loading'}
-          />
+          {playButton('md', false)}
           <AeroButton size="sm" variant="glass" iconOnly icon="next" aria-label="Próxima faixa" onClick={next} disabled={status !== 'ready'} />
-          {full ? (
-            <>
-              <label className="radio__vol">
-                <Icon name={volume === 0 ? 'volumeOff' : 'volume'} />
-                <span className="visually-hidden">Volume da rádio</span>
-                <input
-                  className="aero-range"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={volume}
-                  style={{ ['--fill' as string]: `${volume}%` }}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                />
-              </label>
-              <AeroButton
-                size="sm"
-                variant="glass"
-                iconOnly
-                icon="list"
-                aria-label="Lista de faixas"
-                aria-expanded={list}
-                onClick={() => setList((v) => !v)}
-              />
-            </>
-          ) : (
-            <>
-              <AeroButton size="sm" variant="glass" iconOnly icon="maximize" aria-label="Expandir a rádio" onClick={() => setMode('full')} />
-              <AeroButton size="sm" variant="glass" iconOnly icon="x" aria-label="Fechar o player (a música continua)" onClick={hide} />
-            </>
-          )}
+          <label className="radio__vol">
+            <Icon name={volume === 0 ? 'volumeOff' : 'volume'} />
+            <span className="visually-hidden">Volume da rádio</span>
+            <input
+              className="aero-range"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={volume}
+              style={{ ['--fill' as string]: `${volume}%` }}
+              onChange={(e) => setVolume(Number(e.target.value))}
+            />
+          </label>
+          <AeroButton size="sm" variant="glass" iconOnly icon="list" aria-label="Lista de faixas" aria-expanded={list} onClick={() => setList((v) => !v)} />
         </div>
 
-        {full && list && (
+        {list && (
           <ol ref={listRef} className="radio__list" aria-label="Faixas do mix">
             {RADIO_TRACKS.map((t, i) => (
               <li key={t.at}>
@@ -449,18 +415,9 @@ export function Radio() {
           </ol>
         )}
 
-        {full && (
-          <p className="radio__credit">
-            Mix “{RADIO.title}”, de{' '}
-            <a href={RADIO.channelUrl} target="_blank" rel="noreferrer">
-              {RADIO.channel}
-            </a>
-            , tocando direto do YouTube. Músicas © Nintendo.{' '}
-            <a href={`https://www.youtube.com/watch?v=${RADIO.videoId}`} target="_blank" rel="noreferrer">
-              Ver no YouTube
-            </a>
-          </p>
-        )}
+        <p className="radio__credit">
+          Mix de {RADIO.channel} · músicas da Nintendo
+        </p>
       </section>
     </>
   );

@@ -148,6 +148,8 @@ export function Radio() {
   const [list, setList] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
+  /** O objeto do player existe antes de ficar pronto, mas sem os métodos: só chame depois do onReady. */
+  const readyRef = useRef(false);
   const volumeRef = useRef(volume);
   volumeRef.current = volume;
   const timeRef = useRef(time);
@@ -162,14 +164,16 @@ export function Radio() {
 
   const current = trackAt(time);
   const track = RADIO_TRACKS[current];
+  /** O player, só se já estiver pronto para receber comandos. */
+  const ready = () => (readyRef.current ? playerRef.current : null);
 
   /** Toca. Sempre depois de uma interação de quem está no site. */
   const start = useCallback(() => {
     startedRef.current = true;
     saveOff(false);
-    const p = playerRef.current;
-    if (p) {
-      p.playVideo();
+    if (playerRef.current) {
+      // ainda carregando: o onReady já vai tocar
+      if (readyRef.current) playerRef.current.playVideo();
       return;
     }
     setStatus('loading');
@@ -195,6 +199,7 @@ export function Radio() {
           },
           events: {
             onReady: (e) => {
+              readyRef.current = true;
               setStatus('ready');
               e.target.setVolume(volumeRef.current);
               if (inRoomRef.current) resumeRef.current = true;
@@ -234,8 +239,9 @@ export function Radio() {
 
   // Entrou numa sala: pausa (e lembra se estava tocando). Saiu: volta a tocar.
   useEffect(() => {
-    const p = playerRef.current;
+    const p = ready();
     if (inRoom) {
+      // player ainda carregando: o onReady vê que está numa sala e não toca
       if (p && p.getPlayerState() === PLAYING) {
         resumeRef.current = true;
         p.pauseVideo();
@@ -251,7 +257,7 @@ export function Radio() {
   useEffect(() => {
     if (!playing) return;
     const id = window.setInterval(() => {
-      const t = playerRef.current?.getCurrentTime();
+      const t = ready()?.getCurrentTime();
       if (typeof t === 'number' && Number.isFinite(t)) {
         setTime(t);
         save(POS_KEY, t >= RADIO.length - 5 ? 0 : t);
@@ -261,7 +267,7 @@ export function Radio() {
   }, [playing]);
 
   useEffect(() => {
-    playerRef.current?.setVolume(volume);
+    ready()?.setVolume(volume);
     save(VOL_KEY, volume);
   }, [volume]);
 
@@ -284,7 +290,7 @@ export function Radio() {
   }, [mode, list]);
 
   const seek = (t: number) => {
-    const p = playerRef.current;
+    const p = ready();
     setTime(t);
     save(POS_KEY, t);
     if (!p) return;
@@ -293,8 +299,9 @@ export function Radio() {
   };
 
   const toggle = () => {
-    const p = playerRef.current;
-    if (!p) return start();
+    if (!playerRef.current) return start();
+    const p = ready();
+    if (!p) return;
     if (p.getPlayerState() === PLAYING) {
       p.pauseVideo();
       saveOff(true);
